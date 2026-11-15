@@ -3,6 +3,7 @@
 
 import json
 import re
+import textwrap
 import unicodedata
 from pathlib import Path
 
@@ -35,15 +36,27 @@ def texts(doc) -> list[str]:
 # Moteur factice : lignes à des positions choisies
 
 
-def fake_page(rows, x0=72.0, top=100.0, pitch=15.0, height=11.0, score=0.95, width=470.0) -> OcrPage:
-    """Une ligne OCR par chaîne de `rows` ; une entrée None laisse un blanc d'un interligne."""
+CHAR_W = 4.6  # largeur moyenne d'un caractère (points) : une ligne de 95 caractères remplit la colonne
+
+
+def flow(*paragraphs: str, columns: int = 95) -> list[str | None]:
+    """Lignes de `columns` caractères au plus par paragraphe, une ligne vide entre les paragraphes."""
+    rows: list[str | None] = []
+    for para in paragraphs:
+        if rows:
+            rows.append(None)
+        rows += textwrap.wrap(para, columns)
+    return rows
+
+
+def fake_page(rows, x0=72.0, top=100.0, pitch=15.0, height=14.0, score=0.95) -> OcrPage:
+    """Une ligne OCR par chaîne de `rows` (largeur proportionnelle au texte) ; None laisse un interligne."""
     lines, y = [], top
     for text in rows:
         if text is None:
             y += pitch
             continue
-        full = not text.endswith((".", "!", "?", "»"))  # dernière ligne d'un paragraphe : plus courte
-        lines.append(OcrLine(text, x0, y, x0 + (width if full else 5.2 * len(text)), y + height, score))
+        lines.append(OcrLine(text, x0, y, x0 + CHAR_W * len(text), y + height, score))
         y += pitch
     return OcrPage(595.0, 842.0, lines)
 
@@ -67,7 +80,7 @@ def with_engine(monkeypatch, engine):
     return engine
 
 
-SCAN_TEXT = fake_page(["Texte reconnu", "sur deux lignes.", None, "Second paragraphe."])
+SCAN_TEXT = fake_page(flow("Texte reconnu sur deux lignes.", "Second paragraphe."))
 
 
 # ---------------------------------------------------------------------------------------------------------
@@ -222,8 +235,9 @@ def test_echec_du_moteur_sur_une_page_ne_plante_pas(monkeypatch):
 def test_echec_en_mode_always_garde_le_texte_natif(monkeypatch):
     with_engine(monkeypatch, FakeEngine(default=SCAN_TEXT, fail={0}))
     doc = extract("scan", ocr="always")
-    assert "Cette première page contient du texte natif." in texts(doc)
-    assert "Texte reconnu sur deux lignes." in texts(doc)
+    body = " ".join(texts(doc))
+    assert "Cette première page contient du texte natif." in body
+    assert "Texte reconnu sur deux lignes." in body
 
 
 def test_page_sans_texte_reconnu_signalee(monkeypatch):
@@ -241,7 +255,7 @@ def test_document_entierement_scanne_sans_texte_reconnu_est_une_erreur(monkeypat
 
 
 def test_faible_confiance_signalee_mais_texte_conserve(monkeypatch):
-    low = fake_page(["Texte douteux mais conservé", "jusqu'au bout."], score=0.4)
+    low = fake_page(flow("Texte douteux mais conservé jusqu'au bout."), score=0.4)
     with_engine(monkeypatch, FakeEngine(default=low))
     doc = extract("scan")
     assert "Texte douteux mais conservé jusqu'au bout." in " ".join(texts(doc))
@@ -287,35 +301,39 @@ def doc_from_pages(monkeypatch, pages: dict[int, OcrPage], source="deux_pages", 
 
 def test_cesures_recollees_comme_le_texte_natif(monkeypatch):
     rows = [
-        "La transcrip-",
-        "tion du texte est fidèle ; on n'attend pas peut-",
-        "être de réponse, ni d'arc-en-",
-        "ciel.",
+        "Les lecteurs attendent d'un texte qu'il soit fidèle à l'original ; la transcrip-",
+        "tion doit donc rester exacte, et l'on n'attend pas peut-être de réponse, ni d'arc-en-",
+        "ciel, ni de dénouement heureux, à la tombée du soir.",
     ]
-    doc = doc_from_pages(monkeypatch, {0: fake_page(rows), 1: fake_page(["Fin."])})
+    doc = doc_from_pages(monkeypatch, {0: fake_page(rows), 1: fake_page(flow("Fin de la page."))})
     assert texts(doc)[0] == (
-        "La transcription du texte est fidèle ; on n'attend pas peut-être de réponse, ni d'arc-en-ciel."
+        "Les lecteurs attendent d'un texte qu'il soit fidèle à l'original ; la transcription doit donc "
+        "rester exacte, et l'on n'attend pas peut-être de réponse, ni d'arc-en-ciel, ni de dénouement "
+        "heureux, à la tombée du soir."
     )
 
 
 def test_en_tetes_et_numeros_de_page_repetes_supprimes(monkeypatch):
-    def numbered(n, body):
-        rows = ["Ville de Mortagne — Conseil 2024"] + [None] * 6 + body + [None] * 40 + [f"- {n} -"]
+    def numbered(n, paragraph):
+        header = "Ville de Mortagne — Conseil 2024"
+        rows = [header] + [None] * 6 + flow(paragraph) + [None] * 40 + [f"- {n} -"]
         return fake_page(rows, top=40.0, pitch=15.0)
 
-    pages = {
-        0: numbered(1, ["Premier paragraphe de la première page."]),
-        1: numbered(2, ["Un paragraphe de la deuxième page."]),
-    }
-    doc = doc_from_pages(monkeypatch, pages)
-    assert texts(doc) == ["Premier paragraphe de la première page.", "Un paragraphe de la deuxième page."]
+    first = "Premier paragraphe de la première page, assez long pour remplir plusieurs lignes de la colonne."
+    second = "Un paragraphe de la deuxième page, lui aussi assez long pour remplir plusieurs lignes de texte."
+    doc = doc_from_pages(monkeypatch, {0: numbered(1, first), 1: numbered(2, second)})
+    assert texts(doc) == [first, second]
 
 
 def test_paragraphes_separes_par_interligne(monkeypatch):
-    rows = ["Premier paragraphe sur", "deux lignes.", None, "Deuxième paragraphe.", None, "Troisième."]
-    rows += [None, "Fin."]
-    doc = doc_from_pages(monkeypatch, {0: fake_page(rows), 1: fake_page(["Page deux."])})
-    assert texts(doc)[:3] == ["Premier paragraphe sur deux lignes.", "Deuxième paragraphe.", "Troisième."]
+    paragraphs = [
+        "Premier paragraphe sur deux lignes, avec assez de mots pour que la première ligne soit pleine.",
+        "Deuxième paragraphe, lui aussi assez long pour tenir sur plusieurs lignes complètes de la colonne.",
+        "Troisième paragraphe, plus court.",
+        "Fin.",
+    ]
+    doc = doc_from_pages(monkeypatch, {0: fake_page(flow(*paragraphs)), 1: fake_page(flow("Page deux."))})
+    assert texts(doc)[:3] == paragraphs[:3]
 
 
 def test_deux_colonnes_lues_dans_l_ordre(monkeypatch):
@@ -332,15 +350,30 @@ def test_deux_colonnes_lues_dans_l_ordre(monkeypatch):
 
 
 def test_titre_plus_grand_reconnu(monkeypatch):
-    lines = [OcrLine("Compte rendu", 72, 90, 250, 90 + 22, 0.9)]
+    lines = [OcrLine("Compte rendu", 72, 90, 72 + 12 * 8.0, 90 + 22, 0.9)]
     for n in range(8):
         text = f"Ligne de texte courant numéro {n} du document."
-        lines.append(OcrLine(text, 72, 130 + 15 * n, 500, 141 + 15 * n, 0.9))
+        lines.append(OcrLine(text, 72, 130 + 15 * n, 72 + len(text) * 4.6, 141 + 15 * n, 0.9))
     doc = doc_from_pages(monkeypatch, {0: OcrPage(595.0, 842.0, lines), 1: fake_page(["Page deux."])})
     kinds = [(b.kind, b.text) for ch in doc.chapters for b in ch.blocks]
     assert any(kind == "heading" and text == "Compte rendu" for kind, text in kinds) or (
         doc.chapters[0].title == "Compte rendu"
     ), kinds
+
+
+def test_boite_haute_n_est_pas_un_titre():
+    """Une ligne du corps dont la boîte est 40 % plus haute (capitale accentuée et jambages) garde la taille
+    du corps ; une ligne aux caractères nettement plus larges devient un titre."""
+    body = "Écrivez-moi vite, je vous en prie, et dites à votre père que je n'oublie pas"
+    lines = []
+    for n in range(6):
+        text = f"Ligne de texte courant numéro {n} du document ici."
+        lines.append(OcrLine(text, 72, 130 + 15 * n, 72 + len(text) * 4.6, 144 + 15 * n, 1.0))
+    lines.append(OcrLine(body, 72, 300, 72 + len(body) * 4.6, 321, 0.9))  # boîte de 21 points au lieu de 14
+    lines.append(OcrLine("Un titre en gros caractères", 72, 340, 72 + 27 * 7.5, 356, 0.9))
+    sizes = {f.text: f.size for f in to_page_data(OcrPage(595.0, 842.0, lines), 0).frags}
+    assert sizes[body] == sizes["Ligne de texte courant numéro 0 du document ici."]
+    assert sizes["Un titre en gros caractères"] > 1.25 * sizes[body]
 
 
 def test_taille_regularisee_malgre_boites_inegales():

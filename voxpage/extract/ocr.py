@@ -96,10 +96,12 @@ def fix_confusions(text: str, lang: str | None = None) -> str:
 
 
 def models_dir() -> Path:
+    override = os.environ.get("VOXPAGE_OCR")
+    if override:
+        return Path(override)
     from voxpage import settings  # import tardif : settings tire audio et mutagen
 
-    override = os.environ.get("VOXPAGE_OCR")
-    return Path(override) if override else settings.app_dir() / "ocr"
+    return settings.app_dir() / "ocr"
 
 
 def available() -> bool:
@@ -221,19 +223,30 @@ def recognize(pdf_path: Path, page_index: int, lang: str | None = None) -> OcrPa
 def to_page_data(page: OcrPage, index: int) -> PageData:
     """Convertit les lignes reconnues en `PageData` : un fragment par ligne, à la manière du texte natif.
 
-    La géométrie est régularisée : la hauteur d'une boîte de détection varie avec les accents et les
-    jambages, pas la taille de la police. Les lignes de hauteur proche de la médiane reçoivent la même
-    taille ; seules celles nettement plus hautes (titres) gardent la leur, ce qui permet à l'extracteur de
-    les reconnaître comme titres. Aucune ligne n'est plus petite que le corps (pas de fausse note de bas
-    de page).
+    La géométrie est régularisée : la hauteur d'une boîte de détection varie de 40 % d'une ligne à l'autre
+    selon les accents et les jambages (« Écrivez-moi, je prie ») sans que la police change. La taille de
+    police d'une ligne est donc estimée par la largeur moyenne de ses caractères, bien plus stable que sa
+    hauteur : une ligne dont les caractères sont nettement plus larges que ceux du corps (titre) garde sa
+    taille, les autres reçoivent celle du corps. Les lignes très courtes (moins de 8 caractères) n'ont pas
+    de largeur moyenne fiable : leur hauteur décide, avec un seuil plus haut. Aucune ligne n'est plus petite
+    que le corps (pas de fausse note de bas de page).
     """
     lines = [ln for ln in page.lines if ln.text.strip()]
     heights = [ln.bottom - ln.top for ln in lines]
     body_h = statistics.median(heights) if heights else 10.0
+    long_lines = [ln for ln in lines if len(ln.text) >= 20] or lines
+    advances = [(ln.x1 - ln.x0) / len(ln.text) for ln in long_lines]
+    body_adv = statistics.median(advances) if advances else 1.0
+    body_size = body_h / 1.25
     frags: list[Frag] = []
     for ln, h in zip(lines, heights, strict=True):
-        big = h > 1.3 * body_h
-        size = (h if big else body_h) / 1.25
+        if len(ln.text.strip()) >= 8 and body_adv > 0:
+            factor = ((ln.x1 - ln.x0) / len(ln.text)) / body_adv
+            big = factor > 1.25
+        else:
+            factor = h / body_h
+            big = factor > 1.5
+        size = body_size * min(factor, 4.0) if big else body_size
         mid = (ln.top + ln.bottom) / 2
         top, bottom = mid - 0.625 * size, mid + 0.625 * size
         frags.append(

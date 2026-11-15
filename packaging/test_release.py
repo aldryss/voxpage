@@ -13,6 +13,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 import zipfile
 from pathlib import Path
 
@@ -107,7 +108,9 @@ def flat(text: str) -> str:
 def export_text(exe: Path, src: Path, out: Path, label: str, phrases: list[str], *args: str,
                 forbidden: tuple[str, ...] = (), stderr_has: str | None = None) -> str:
     """Exporte le texte lu (--texte) et vérifie qu'il contient (ou ne contient pas) des phrases."""
+    started = time.perf_counter()
     p = run(exe, str(src), "--texte", str(out), *args)
+    elapsed = time.perf_counter() - started
     if p.returncode != 0 or not out.is_file():
         fail(f"{label} : code {p.returncode}\n{p.stderr_text}")
         return ""
@@ -120,7 +123,7 @@ def export_text(exe: Path, src: Path, out: Path, label: str, phrases: list[str],
     elif stderr_has is not None and stderr_has not in p.stderr_text:
         fail(f"{label} : avertissement attendu absent ({stderr_has!r}) : {p.stderr_text!r}")
     else:
-        ok(f"{label} : texte exporté conforme ({len(text)} caractères)")
+        ok(f"{label} : texte exporté conforme ({len(text)} caractères, {elapsed:.1f} s)")
     return text
 
 
@@ -275,6 +278,12 @@ def main() -> int:
         cli, corpus / "scan.pdf", base / "sans-ocr.txt", "PDF scanné avec --ocr jamais",
         ["Cette première page contient du texte natif."], "--ocr", "jamais",
         forbidden=("conseil municipal",), stderr_has="aucun texte exploitable",
+    )
+    # page dense (2 500 caractères, scan dégradé à 150 dpi) : sert aussi de mesure du temps par page
+    export_text(
+        cli, corpus / "ocr-roman.pdf", base / "roman.txt", "page dense scannée (OCR)",
+        ["Il pleuvait depuis trois jours", "Le vieux Mathias", "Hélène posa son tricot"],
+        stderr_has="reconnu par OCR",
     )
     # Conversion audio du PDF scanné : OCR (onnxruntime) puis synthèse (sherpa-onnx) dans le même processus
     convert(
