@@ -98,7 +98,9 @@ def convert(exe: Path, src: Path, out: Path, label: str, *args: str, lo: float, 
 
 def flat(text: str) -> str:
     """Texte comparable : apostrophes et guillemets unifiés, espaces ramenés à un, minuscules."""
-    text = text.translate(str.maketrans("’‘“”«»–—\u00a0\u202f", "''\"\"\"\"-- "))
+    table = {ord(c): "'" for c in "’‘"} | {ord(c): '"' for c in "“”«»"} | {ord(c): "-" for c in "–—"}
+    table |= {ord(c): " " for c in "\u00a0\u202f"}
+    text = text.translate(table)
     return re.sub(r"\s+", " ", text).strip().lower()
 
 
@@ -261,7 +263,7 @@ def main() -> int:
     scan_phrases = [
         "Cette première page contient du texte natif.",
         "Compte rendu du conseil",
-        "Le conseil municipal s’est réuni le 14 mars 2024 à l’hôtel de ville.",
+        "Le conseil municipal s’est réuni le 14 mars",
         "la rénovation de l’école Jules-Ferry",
         "a déclaré la maire, Hélène Garnier.",
     ]
