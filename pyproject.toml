@@ -5,6 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "voxpage"
 version = "0.1.0"
+license = "GPL-3.0-or-later"
 description = "Convertit un PDF en fichier audio pour les personnes malvoyantes"
 readme = "README.md"
 requires-python = ">=3.12"

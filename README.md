@@ -164,3 +164,5 @@ Pour ajouter un format d'entrée, écrivez un Extractor (voir voxpage/extract/ba
 Voxpage utilise notamment les composants suivants : sherpa-onnx et les voix Piper (synthèse vocale), eSpeak NG (phonémisation), pdfminer.six (lecture des PDF), PDFium (via pypdfium2, rendu et signets des PDF), wxPython (interface), LAME (encodage MP3, via lameenc) et mutagen (marques de chapitres et étiquettes).
 
 La liste complète des composants et de leurs licences figure dans le fichier NOTICE.txt, livré dans le zip. Les licences des voix sont détaillées dans le fichier voices/README.md.
+
+Voxpage lui-même est distribué sous licence GNU GPL version 3 ou ultérieure (fichier LICENSE). Vous pouvez l'utiliser, le copier, le modifier et le redistribuer selon les termes de cette licence.
