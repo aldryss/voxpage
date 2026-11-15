@@ -217,3 +217,5 @@ Procédure : `docs/release.md`.
 - Corpus de PDF de test (`tests/corpus/`) avec le texte attendu : colonnes, en-têtes et pieds, césures,
   notes, listes, tableaux, pages scannées.
 - Le workflow de release lance l'exécutable construit sur un PDF du corpus et vérifie le MP3 produit.
+- Recette de bout en bout sur des documents réels : `docs/recette.md`. Intelligibilité sans écoute :
+  `tools/roundtrip.py` (synthèse puis reconnaissance Whisper, WER ; outil de développement, jamais livré).
