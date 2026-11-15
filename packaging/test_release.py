@@ -6,6 +6,8 @@ Le zip est décompressé hors du dépôt, dans un chemin avec espace et accent ;
 avec un environnement Python vidé et un PATH réduit à Windows (aucune DLL de la machine de build).
 """
 
+import base64
+import locale
 import os
 import re
 import subprocess
@@ -48,8 +50,10 @@ def run(exe: Path, *args: str, timeout: int = 600) -> subprocess.CompletedProces
     proc = subprocess.run(
         [str(exe), *args], capture_output=True, timeout=timeout, env=clean_env(), cwd=exe.parent.parent
     )
-    proc.stdout_text = proc.stdout.decode("utf-8", "replace")  # type: ignore[attr-defined]
-    proc.stderr_text = proc.stderr.decode("utf-8", "replace")  # type: ignore[attr-defined]
+    # les exécutables écrivent dans l'encodage de la console de la machine (cp1252 ici)
+    enc = locale.getpreferredencoding(False)
+    proc.stdout_text = proc.stdout.decode(enc, "replace")  # type: ignore[attr-defined]
+    proc.stderr_text = proc.stderr.decode(enc, "replace")  # type: ignore[attr-defined]
     return proc
 
 
@@ -97,15 +101,19 @@ def block_network(*exes: Path) -> None:
     for exe in exes:
         cmd = (
             f"New-NetFirewallRule -DisplayName 'voxpage-test-{exe.name}' -Direction Outbound "
-            f"-Action Block -Program '{exe}' | Out-Null"
+            f"-Action Block -Program '{exe.resolve()}' | Out-Null"
         )
-        p = subprocess.run(["powershell", "-NoProfile", "-Command", cmd], capture_output=True, text=True)
+        encoded = base64.b64encode(cmd.encode("utf-16-le")).decode("ascii")
+        p = subprocess.run(
+            ["powershell", "-NoProfile", "-EncodedCommand", encoded], capture_output=True, text=True
+        )
         print(
             f"pare-feu {exe.name} : {'bloqué' if p.returncode == 0 else 'non appliqué ' + p.stderr.strip()}"
         )
 
 
 def main() -> int:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     zip_path = Path(sys.argv[1]).resolve()
     base = Path(tempfile.mkdtemp(prefix="Essai é ")) / "Dossier avec espace"
     base.mkdir()
