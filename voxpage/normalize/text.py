@@ -55,6 +55,10 @@ def clean_block(text: str, kind: str = "paragraph") -> str:
 # --------------------------------------------------------------------------- TOUT EN MAJUSCULES
 
 _WORD = re.compile(r"[^\W\d_]+", re.UNICODE)
+# Prénoms courts : en capitales ils ressemblent à des sigles (« GUY ») mais se lisent comme des mots.
+_FIRST_NAMES = set("""guy luc marc paul jean alain yves yann ines jade lea léa eva ève emma anna lisa
+pierre jules louis hugo remy rémy theo théo noé noe sam tom max leo léo ugo dan ivan igor ben""".split())
+_PARTICLE = re.compile(r"\b((?:de|du|des|von|van)\s+|d['’])([a-zà-ÿœ])")
 
 
 def _is_all_caps(text: str) -> bool:
@@ -78,11 +82,18 @@ def decaps(text: str, lang: str) -> str:
             return t
         if not any(c in _VOWELS for c in t):
             return t
+        if t.lower() in _FIRST_NAMES:
+            return t.capitalize()
         if len(t) >= 5 or t.lower() in short:
             return t.lower()
+        if acronyms.wordlike(t) and t not in acronyms.WORD_ACRONYMS[lang if lang == "en" else "fr"]:
+            return t.lower()  # « LUNE », « NOTE » : un mot, pas un sigle
         return t
 
     out = _WORD.sub(rep, text)
+    if len(out.split()) <= 4 and not re.search(r"[.!?:;,]", out):
+        # nom propre court (« GUY DE MAUPASSANT ») : le mot après la particule garde sa capitale
+        out = _PARTICLE.sub(lambda m: m.group(1) + m.group(2).upper(), out)
     # majuscule en début de texte et de phrase
     out = re.sub(r"^([^\w]*)([^\W\d_])", lambda m: m.group(1) + m.group(2).upper(), out)
     return re.sub(r"([.!?…]\s+[^\w]*)([^\W\d_])", lambda m: m.group(1) + m.group(2).upper(), out)

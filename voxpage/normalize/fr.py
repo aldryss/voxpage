@@ -205,7 +205,7 @@ KING_NAMES = (
 
 # Mots courts (<= 4 lettres) qui sont de vrais mots et non des sigles, pour les textes TOUT EN MAJUSCULES.
 SHORT_WORDS = set("""
-a à ai as au aux ça ce ces cet ci car ceux chez dans de des du donc dont elle en es est et eux fut
+a à ai as au aux ça ce ces cet ci car ceux chez dans de des du donc hors dont elle en es est et eux fut
 il ils je la là le les leur lui ma mais me mes moi mon ne ni nos nous on ont or ou où par pas peu plus
 pour que qui quoi sa sans se ses si son sont sur ta te tes toi ton tous tout très tu un une vers vos
 vous y été être avec bis ter ainsi alors après aussi avant bien cela cette ceci deux dix fois fin huit lieu
