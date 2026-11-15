@@ -6,13 +6,16 @@ from pathlib import Path
 from voxpage.audio import AudioError, AudioWriter
 from voxpage.document import Document
 from voxpage.extract import UnsupportedFormat, extractor_for
-from voxpage.normalize import SpeechChapter, normalize
+from voxpage.extract.base import ExtractError
+from voxpage.normalize import SpeechChapter, normalize, spoken_title
+from voxpage.normalize.text import has_content
 from voxpage.progress import Cancelled, CancelToken, ProgressCb
 from voxpage.settings import Settings
 from voxpage.tts.base import TtsEngine, Voice
 
 EXTRACT_SHARE = 0.10  # part de la progression consacrée à la lecture du document
 _QUOTE_MAX = 80
+_SILENT_MAX = 5  # passages muets cités nommément dans les avertissements
 
 
 class ConversionError(Exception):
@@ -59,6 +62,9 @@ def _read_document(
         )
     except (Cancelled, ConversionError):
         raise
+    except ExtractError as exc:  # message déjà rédigé pour l'utilisateur (il cite le fichier)
+        message = str(exc).strip()
+        raise ConversionError(message or f"Impossible de lire « {path.name} ».") from exc
     except OSError as exc:
         raise ConversionError(f"Impossible de lire « {path.name} » : {exc.strerror or exc}.") from exc
     except Exception as exc:
@@ -147,6 +153,7 @@ def convert(
 
     total_chars = sum(len(s.text) + 1 for ch in chapters for s in ch.segments) or 1
     done_chars = 0
+    silent: list[str] = []  # passages porteurs de texte pour lesquels le moteur n'a produit aucun son
     try:
         writer = AudioWriter(Path(output), settings.audio, doc.title, doc.author)
     except AudioError as exc:
@@ -162,6 +169,8 @@ def convert(
                     cancel.raise_if_cancelled()
                 if segment.text.strip():
                     samples, rate = _synthesize(engine, segment.text, voice, settings)
+                    if len(samples) == 0 and has_content(segment.text):
+                        silent.append(segment.text)
                     writer.write(samples, rate)
                     writer.write_silence(segment.pause_after_ms)
                 done_chars += len(segment.text) + 1
@@ -175,6 +184,12 @@ def convert(
         raise
     if not files:
         raise ConversionError("La synthèse n'a produit aucun son.")
+    if silent:
+        quoted = " ; ".join(f"« {_quote(t)} »" for t in silent[:_SILENT_MAX])
+        more = f" (et {len(silent) - _SILENT_MAX} autre(s))" if len(silent) > _SILENT_MAX else ""
+        warnings.append(
+            f"{len(silent)} passage(s) n'ont produit aucun son et manquent dans l'audio : {quoted}{more}."
+        )
     report("Terminé", 1.0)
     return ConvertResult(files=files, duration_s=writer.duration_s, warnings=warnings)
 
@@ -185,7 +200,10 @@ def extract_text(
     progress: ProgressCb | None = None,
     cancel: CancelToken | None = None,
 ) -> str:
-    """Texte tel qu'il sera dit : un segment par ligne, chapitres séparés par leur titre."""
+    """Texte tel qu'il sera dit : un segment par ligne, chapitres séparés par leur titre.
+
+    La ligne « == Titre == » tient lieu de l'annonce du titre quand celui-ci est dit en tête de chapitre
+    (il n'est pas répété sur la ligne suivante)."""
     report = _Progress(progress)
     doc = _read_document(input, settings, report, 0.9, cancel)
     report("Préparation du texte", 0.95)
@@ -194,6 +212,9 @@ def extract_text(
     for chapter in chapters:
         lines = [s.text for s in chapter.segments if s.text.strip()]
         if chapter.title:
+            said = spoken_title(chapter.title, doc.lang, settings.normalize)
+            if said and lines[: len(said)] == said:
+                del lines[: len(said)]  # le titre est dit en tête de chapitre : la ligne « == … == » le porte
             lines.insert(0, f"== {chapter.title} ==")
         if lines:
             parts.append("\n".join(lines))

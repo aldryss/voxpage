@@ -106,16 +106,37 @@ def test_empty_text_gives_empty_array():
 
 @pytest.mark.voices
 def test_speed_shortens_audio():
+    # La synthèse VITS est stochastique (durée : écart type ~2,5 % d'un tirage à l'autre) : on compare des
+    # médianes de 5 tirages. Mesuré sur 30 tirages : 0,8x => durée x 1,11 ; 1,5x => durée x 0,75.
+    # Seuils à plus de 4 écarts types de la moyenne.
     ids = _voice_ids("fr")
     if not ids:
         pytest.skip("aucune voix fr")
     eng = get_engine()
-    normal, _ = eng.synthesize(FR, ids[0], speed=1.0)
-    fast, _ = eng.synthesize(FR, ids[0], speed=1.5)
-    assert len(fast) < len(normal) * 0.8
-    out_of_range, _ = eng.synthesize(FR, ids[0], speed=50)
-    capped, _ = eng.synthesize(FR, ids[0], speed=MAX_SPEED)
-    assert abs(len(out_of_range) - len(capped)) < 0.05 * len(capped)  # bruit stochastique du modèle
+
+    def median_len(speed: float) -> float:
+        return float(np.median([len(eng.synthesize(FR, ids[0], speed=speed)[0]) for _ in range(5)]))
+
+    normal, fast, slow = median_len(1.0), median_len(1.5), median_len(0.8)
+    assert fast < normal * 0.85
+    assert slow > normal * 1.03
+
+
+def test_speed_is_clamped_before_synthesis(tmp_path):
+    seen = []
+
+    class FakeTts:
+        num_speakers = 1
+
+        def generate(self, text, sid=0, speed=1.0):
+            seen.append(speed)
+            return type("A", (), {"samples": [0.0, 0.5], "sample_rate": 22050})()
+
+    eng = SherpaEngine(tmp_path)
+    eng._models["v"] = (FakeTts(), 22050)
+    eng.synthesize("Bonjour.", "v", speed=50)
+    eng.synthesize("Bonjour.", "v", speed=0.01)
+    assert seen == [MAX_SPEED, MIN_SPEED]
 
 
 @pytest.mark.voices

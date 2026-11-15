@@ -207,3 +207,96 @@ def test_bout_en_bout_mp3(tmp_path):
     assert 3 < audio.info.length < 25
     assert abs(audio.info.length - r.duration_s) < 0.5
     assert audio.tags is not None and "TIT2" in audio.tags
+
+
+# --- recette de bout en bout (issue #11) ------------------------------------------------------------------
+
+
+def _register(ext_name, extract):
+    from voxpage import extract as registry
+
+    class Ext:
+        extensions = (ext_name,)
+
+        def extract(self, path, options, progress=None, cancel=None):
+            return extract(path)
+
+    registry.register(Ext())
+
+
+def test_erreur_extraction_sans_repetition(tmp_path):
+    from voxpage.extract.base import ExtractError
+
+    def boom(path):
+        raise ExtractError(f"« {path.name} » est protégé par un mot de passe.")
+
+    _register(".prot", boom)
+    src = tmp_path / "x.prot"
+    src.write_text("x")
+    with pytest.raises(ConversionError) as err:
+        extract_text(src, settings())
+    assert str(err.value) == "« x.prot » est protégé par un mot de passe."
+    assert str(err.value).count("x.prot") == 1
+
+
+def test_extract_text_titre_non_repete(tmp_path):
+    from voxpage.document import Block, Chapter, Document
+
+    _register(
+        ".tit",
+        lambda path: Document(
+            "Livre",
+            None,
+            "fr",
+            [
+                Chapter(
+                    "Chapitre 2,5 %", [Block("heading", "Chapitre 2,5 %", 1), Block("paragraph", "Texte.")]
+                ),
+                Chapter("Sans titre dans le texte", [Block("paragraph", "Suite.")]),
+            ],
+            [],
+        ),
+    )
+    src = tmp_path / "x.tit"
+    src.write_text("x")
+    lines = extract_text(src, settings()).splitlines()
+    assert lines[:2] == ["== Chapitre 2,5 % ==", "Texte."]
+    # titre absent du texte : il est annoncé ; la ligne « == … == » tient lieu de cette annonce
+    assert lines[3:5] == ["== Sans titre dans le texte ==", "Suite."]
+    assert "Sans titre dans le texte" not in lines
+
+
+def test_titre_apres_surtitre_dit_une_fois(tmp_path):
+    from voxpage.document import Block, Chapter, Document
+    from voxpage.normalize import NormalizeOptions, normalize
+
+    doc = Document(
+        "Grand titre",
+        None,
+        "fr",
+        [
+            Chapter(
+                "Grand titre",
+                [
+                    Block("heading", "BILAN 2024", 2),
+                    Block("heading", "Grand titre", 1),
+                    Block("paragraph", "Texte."),
+                ],
+            )
+        ],
+        [],
+    )
+    said = [s.text for s in normalize(doc, NormalizeOptions())[0].segments]
+    assert said.count("Grand titre") == 1
+
+
+def test_passage_muet_signale(doc, tmp_path):
+    class Muet(FakeEngine):
+        def synthesize(self, text, voice_id, speaker=0, speed=1.0):
+            if "deuxième" in text:
+                return np.zeros(0, dtype=np.int16), RATE
+            return super().synthesize(text, voice_id, speaker, speed)
+
+    r = convert(doc, tmp_path / "o.wav", settings(), engine=Muet())
+    assert len(r.warnings) == 1
+    assert "aucun son" in r.warnings[0] and "deuxième paragraphe" in r.warnings[0]

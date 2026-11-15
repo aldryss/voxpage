@@ -87,11 +87,19 @@ def _block_segments(block: Block, lang: str, opts: NormalizeOptions) -> list[Seg
     return [Segment(t, p) for t, p in pieces]
 
 
-def _same_title(a: str, b: str) -> bool:
+def same_title(a: str, b: str) -> bool:
+    """Même titre, à la casse et à la ponctuation près."""
     def key(s: str) -> str:
         return re.sub(r"\W+", " ", s.casefold()).strip()
 
     return bool(key(a)) and key(a) == key(b)
+
+
+def spoken_title(title: str, lang: str, options: NormalizeOptions | None = None) -> list[str]:
+    """Segments dits pour annoncer un titre de chapitre."""
+    title = re.sub(r"\s+", " ", title or "").strip()
+    lang = "en" if (lang or "fr").lower().startswith("en") else "fr"
+    return [s.text for s in _block_segments(Block("heading", title), lang, options or NormalizeOptions())]
 
 
 def normalize(doc: Document, options: NormalizeOptions) -> list[SpeechChapter]:
@@ -101,7 +109,13 @@ def normalize(doc: Document, options: NormalizeOptions) -> list[SpeechChapter]:
         segments: list[Segment] = []
         title = re.sub(r"\s+", " ", chapter.title or "").strip()
         blocks = [b for b in chapter.blocks if (b.text or "").strip()]
-        duplicate = bool(blocks) and blocks[0].kind == "heading" and _same_title(title, blocks[0].text)
+        # titre déjà présent en tête de chapitre (éventuellement après un surtitre) : on ne l'annonce pas
+        leading = []
+        for b in blocks:
+            if b.kind != "heading":
+                break
+            leading.append(b)
+        duplicate = any(same_title(title, b.text) for b in leading)
         if options.announce_headings and title and not duplicate:
             segments += _block_segments(Block("heading", title), lang, options)
         for block in blocks:
