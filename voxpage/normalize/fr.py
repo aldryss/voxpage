@@ -19,7 +19,8 @@ CAN_END = {"etc", "j.-c", "sq", "sqq", "suiv", "cit", "env", "ibid"}
 MONTHS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre",
           "octobre", "novembre", "décembre"]
 
-# (motif, remplacement) appliqués dans l'ordre sur chaque phrase.
+# (motif, remplacement) appliqués dans l'ordre sur chaque phrase. « \U0001d400-\U0001d419 » : repères du
+# dictionnaire de prononciation (lexicon.py), qui tiennent la place d'un nom propre : « M. Nguyen ».
 ABBREVIATIONS: list[tuple[re.Pattern, str]] = [
     (re.compile(p, flags), r)
     for p, r, flags in [
@@ -31,17 +32,17 @@ ABBREVIATIONS: list[tuple[re.Pattern, str]] = [
         (r"\bi\.e\.", "c'est-à-dire", 0),
         (r"\be\.g\.", "par exemple", 0),
         (r"\bN\.B\.", "nota bene", 0),
-        (r"\bMM\.(?=\s+[A-ZÀ-ÖØ-Þ])", "messieurs", 0),
-        (r"\bM\.(?=\s+[A-ZÀ-ÖØ-Þ])", "monsieur", 0),
+        (r"\bMM\.(?=\s+[A-ZÀ-ÖØ-Þ\U0001d400-\U0001d419])", "messieurs", 0),
+        (r"\bM\.(?=\s+[A-ZÀ-ÖØ-Þ\U0001d400-\U0001d419])", "monsieur", 0),
         (r"\bM\.(?=\s+(?:le|la|de|du|des|d['’]|l['’])\b)", "monsieur", 0),  # M. le curé, M. de Villefort
         (r"\bMmes\b\.?", "mesdames", 0),
         (r"\bMme\b\.?", "madame", 0),
         (r"\bMlles\b\.?", "mesdemoiselles", 0),
         (r"\bMlle\b\.?", "mademoiselle", 0),
-        (r"\bDrs\.(?=\s+[A-ZÀ-ÖØ-Þ])", "docteurs", 0),
-        (r"\bDr\.?(?=\s+[A-ZÀ-ÖØ-Þ])", "docteur", 0),
-        (r"\bPr\.(?=\s+[A-ZÀ-ÖØ-Þ])", "professeur", 0),
-        (r"\bProf\.(?=\s+[A-ZÀ-ÖØ-Þ])", "professeur", 0),
+        (r"\bDrs\.(?=\s+[A-ZÀ-ÖØ-Þ\U0001d400-\U0001d419])", "docteurs", 0),
+        (r"\bDr\.?(?=\s+[A-ZÀ-ÖØ-Þ\U0001d400-\U0001d419])", "docteur", 0),
+        (r"\bPr\.(?=\s+[A-ZÀ-ÖØ-Þ\U0001d400-\U0001d419])", "professeur", 0),
+        (r"\bProf\.(?=\s+[A-ZÀ-ÖØ-Þ\U0001d400-\U0001d419])", "professeur", 0),
         (r"\bcf\.", "confer", 0),
         (r"\bcf\b(?=\s)", "confer", 0),
         (r"\bN[°º]\s?(?=\d)", "Numéro ", 0),

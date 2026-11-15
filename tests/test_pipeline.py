@@ -3,6 +3,7 @@ import pytest
 
 from voxpage import pipeline
 from voxpage.extract import UnsupportedFormat  # noqa: F401
+from voxpage.normalize.lexicon import LexiconSource
 from voxpage.pipeline import ConversionError, convert, extract_text
 from voxpage.progress import Cancelled, CancelToken
 from voxpage.settings import Settings
@@ -300,3 +301,64 @@ def test_passage_muet_signale(doc, tmp_path):
     r = convert(doc, tmp_path / "o.wav", settings(), engine=Muet())
     assert len(r.warnings) == 1
     assert "aucun son" in r.warnings[0] and "deuxième paragraphe" in r.warnings[0]
+
+
+# --------------------------------------------------------------------------- dictionnaire de prononciation
+
+
+@pytest.fixture
+def sigle(tmp_path):
+    p = tmp_path / "sigle.txt"
+    p.write_text("Le rapport de la ZXQ est publié. Selon M. Nguyen.", encoding="utf-8")
+    return p
+
+
+def user_dico(tmp_path, text="ZXQ = zed ix qu\nNguyen = nou-yène\n"):
+    f = tmp_path / "dico.txt"
+    f.write_text(text, encoding="utf-8")
+    return LexiconSource(user_path=f)
+
+
+def test_extract_text_avec_dictionnaire(sigle, tmp_path):
+    text = extract_text(sigle, settings(), pronunciations=user_dico(tmp_path))
+    assert "Le rapport de la zed ix qu est publié." in text and "monsieur nou-yène." in text
+
+
+def test_extract_text_sans_dictionnaire(sigle, tmp_path):
+    text = extract_text(sigle, settings(), pronunciations=LexiconSource(shipped=False, user=False))
+    assert "la Z X Q est publié" in text and "Nguyen" in text
+
+
+def test_convert_synthetise_le_dit(sigle, tmp_path):
+    engine = FakeEngine()
+    convert(sigle, tmp_path / "s.wav", settings(), engine=engine, pronunciations=user_dico(tmp_path))
+    said = " ".join(t for t, _ in engine.calls)
+    assert "zed ix qu" in said and "Z X Q" not in said
+
+
+def test_convert_signale_les_lignes_invalides(sigle, tmp_path):
+    src = user_dico(tmp_path, "ZXQ = zed ix qu\nn'importe quoi\n")
+    result = convert(sigle, tmp_path / "s.wav", settings(), engine=FakeEngine(), pronunciations=src)
+    assert any("ligne 2 ignorée" in w and "dico.txt" in w for w in result.warnings)
+    warnings: list[str] = []
+    extract_text(sigle, settings(), warnings=warnings, pronunciations=src)
+    assert any("ligne 2 ignorée" in w for w in warnings)
+
+
+def test_dictionnaire_de_la_langue_du_document(tmp_path):
+    f = tmp_path / "dico.txt"
+    f.write_text("[fr]\nZXQ = en français\n[en]\nZXQ = in english\n", encoding="utf-8")
+    en = tmp_path / "en.txt"
+    en.write_text("The report of the ZXQ is out. It is the ZXQ, and this is the end of it.", encoding="utf-8")
+    text = extract_text(en, settings(), pronunciations=LexiconSource(user_path=f))
+    assert "in english" in text and "en français" not in text
+
+
+def test_utilisateur_par_defaut_a_cote_des_reglages(sigle, tmp_path, monkeypatch):
+    from voxpage import settings as app_settings
+
+    monkeypatch.setattr(app_settings, "app_dir", lambda: tmp_path / "app")
+    monkeypatch.setattr(app_settings, "fallback_dir", lambda: tmp_path / "fb")
+    (tmp_path / "app").mkdir()
+    (tmp_path / "app" / "prononciations.txt").write_text("ZXQ = zed ix qu\n", encoding="utf-8")
+    assert "zed ix qu" in extract_text(sigle, settings())

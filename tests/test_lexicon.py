@@ -361,6 +361,9 @@ INTEGRATION = [
     ("Voir c.-à-d. la suite.", {"c.-à-d.": "c'est-à-dire"}, "Voir c'est-à-dire la suite."),
     ("Un Nguyen, un autre.", {"Nguyen": "nou-yène"}, "Un nou-yène, un autre."),
     ("Le site www.exemple.fr.", {"www.exemple.fr": "exemple point fr"}, "Le site exemple point fr."),
+    # Abréviations de titre devant un nom du dictionnaire
+    ("Selon M. Nguyen, oui.", {"Nguyen": "nou-yène"}, ["Selon monsieur nou-yène, oui."]),
+    ("Le Dr Nguyen et Mme Nguyen.", {"Nguyen": "nou-yène"}, ["Le docteur nou-yène et madame nou-yène."]),
     # Début de phrase : la coupe en phrases ne change pas
     ("Il part. EDF reste.", {"EDF": "eu dé effe"}, ["Il part.", "eu dé effe reste."]),
     ("Il part. Nguyen reste.", {"Nguyen": "nou-yène"}, ["Il part.", "nou-yène reste."]),
