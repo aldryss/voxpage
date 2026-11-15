@@ -96,6 +96,32 @@ def convert(exe: Path, src: Path, out: Path, label: str, *args: str, lo: float, 
         fail(f"{label} : durée {d:.1f} s hors de [{lo}, {hi}]")
 
 
+def flat(text: str) -> str:
+    """Texte comparable : apostrophes et guillemets unifiés, espaces ramenés à un, minuscules."""
+    text = text.translate(str.maketrans("’‘“”«»–—\u00a0\u202f", "''\"\"\"\"-- "))
+    return re.sub(r"\s+", " ", text).strip().lower()
+
+
+def export_text(exe: Path, src: Path, out: Path, label: str, phrases: list[str], *args: str,
+                forbidden: tuple[str, ...] = (), stderr_has: str | None = None) -> str:
+    """Exporte le texte lu (--texte) et vérifie qu'il contient (ou ne contient pas) des phrases."""
+    p = run(exe, str(src), "--texte", str(out), *args)
+    if p.returncode != 0 or not out.is_file():
+        fail(f"{label} : code {p.returncode}\n{p.stderr_text}")
+        return ""
+    text = out.read_text(encoding="utf-8")
+    body = flat(text)
+    missing = [s for s in phrases if flat(s) not in body]
+    present = [s for s in forbidden if flat(s) in body]
+    if missing or present:
+        fail(f"{label} : phrases absentes {missing}, phrases indésirables {present}\n--- texte ---\n{text}")
+    elif stderr_has is not None and stderr_has not in p.stderr_text:
+        fail(f"{label} : avertissement attendu absent ({stderr_has!r}) : {p.stderr_text!r}")
+    else:
+        ok(f"{label} : texte exporté conforme ({len(text)} caractères)")
+    return text
+
+
 def block_network(*exes: Path) -> None:
     """Règle de pare-feu sortante bloquant les exécutables (échec toléré : simple garde-fou)."""
     for exe in exes:
@@ -149,8 +175,8 @@ def main() -> int:
     p = run(cli, "--diagnostic")
     print(p.stdout_text)
     fields = dict(line.split("=", 1) for line in p.stdout_text.splitlines() if re.match(r"\w+=", line))
-    if p.returncode == 0 and "ÉCHEC" not in p.stdout_text:
-        ok("--diagnostic : bibliothèques et données présentes")
+    if p.returncode == 0 and "ÉCHEC" not in p.stdout_text and "ok ocr : lu" in p.stdout_text:
+        ok("--diagnostic : bibliothèques et données présentes, moteur OCR chargé")
     else:
         fail(f"--diagnostic : code {p.returncode}\n{p.stderr_text}")
     if fields.get("frozen") != "True" or Path(fields.get("app_dir", "")).resolve() != app.resolve():
@@ -219,8 +245,43 @@ def main() -> int:
         hi=60,
     )
 
+    # Texte exporté : PDF natif, puis PDF scanné lu par OCR (moteur et modèles livrés dans le zip)
+    corpus = ROOT / "tests" / "corpus"
+    for name in ("ch_PP-OCRv5_det_mobile.onnx", "latin_PP-OCRv5_rec_mobile.onnx"):
+        if (app / "ocr" / name).is_file():
+            ok(f"ocr/{name} présent")
+        else:
+            fail(f"ocr/{name} absent du zip")
+    export_text(
+        cli, corpus / "simple.pdf", base / "natif.txt", "texte du PDF natif",
+        ["Le phare de Kerbrat se dresse à la pointe d’un cap battu par les vents.",
+         "Le gardien, Yves Le Goff, monte chaque soir les cent douze marches"],
+        forbidden=("OCR",),
+    )
+    scan_phrases = [
+        "Cette première page contient du texte natif.",
+        "Compte rendu du conseil",
+        "Le conseil municipal s’est réuni le 14 mars 2024 à l’hôtel de ville.",
+        "la rénovation de l’école Jules-Ferry",
+        "a déclaré la maire, Hélène Garnier.",
+    ]
+    export_text(
+        cli, corpus / "scan.pdf", base / "scanné.txt", "texte du PDF scanné (OCR)", scan_phrases,
+        stderr_has="reconnu par OCR",
+    )
+    export_text(
+        cli, corpus / "scan.pdf", base / "sans-ocr.txt", "PDF scanné avec --ocr jamais",
+        ["Cette première page contient du texte natif."], "--ocr", "jamais",
+        forbidden=("conseil municipal",), stderr_has="aucun texte exploitable",
+    )
+    # Conversion audio du PDF scanné : OCR (onnxruntime) puis synthèse (sherpa-onnx) dans le même processus
+    convert(
+        cli, corpus / "scan.pdf", out_dir / "scanné.mp3", "PDF scanné → MP3", "--voix", "fr_FR-siwis-medium",
+        lo=5, hi=120,
+    )
+
     # PDF du corpus, s'il existe
-    pdfs = sorted((ROOT / "tests" / "corpus").glob("*.pdf"))[:3]
+    pdfs = sorted(corpus.glob("*.pdf"))[:3]
     if not pdfs:
         print("PDF du corpus : tests/corpus/ absent ou vide, étape sautée")
     for pdf in pdfs:

@@ -1,7 +1,7 @@
 """Complète le dossier produit par PyInstaller et crée le zip portable.
 
 Usage : python packaging/assemble.py [dist/Voxpage]
-  - copie voices/ (voix + README), LISEZMOI.txt et NOTICE.txt à côté des exécutables ;
+  - copie voices/ (voix + README), ocr/ (modèles OCR), LISEZMOI.txt et NOTICE.txt à côté des exécutables ;
   - retire les fichiers parasites (caches, tests) ;
   - écrit dist/Voxpage-<version>-win64-portable.zip et le .sha256 correspondant.
 """
@@ -46,6 +46,11 @@ def main() -> None:
     if len(list(voices.glob("*/voice.json"))) != 3:
         raise SystemExit("Les trois voix doivent être présentes dans voices/ (python tools/fetch_voices.py).")
     shutil.copytree(voices, app / "voices", dirs_exist_ok=True)
+    ocr = ROOT / "ocr"
+    models = sorted(ocr.glob("*.onnx"))
+    if len(models) != 2:
+        raise SystemExit("Les deux modèles OCR doivent être présents dans ocr/ (python tools/fetch_ocr.py).")
+    shutil.copytree(ocr, app / "ocr", dirs_exist_ok=True)
     shutil.copy2(PKG / "LISEZMOI.txt", app / "LISEZMOI.txt")
     notice = ROOT / "build" / "NOTICE.txt"
     if not notice.is_file():

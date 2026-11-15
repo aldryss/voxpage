@@ -8,8 +8,8 @@ aucun compte, aucune installation, aucun droit administrateur.
 LANCEMENT
 ---------
 1. Decompressez le zip ou vous voulez (dossier du disque, cle USB...).
-   Gardez le dossier complet : Voxpage.exe a besoin des dossiers "_internal" et
-   "voices" qui sont a cote de lui.
+   Gardez le dossier complet : Voxpage.exe a besoin des dossiers "_internal",
+   "voices" et "ocr" qui sont a cote de lui.
 2. Double-cliquez sur Voxpage.exe. L'interface s'utilise entierement au clavier
    et avec un lecteur d'ecran (NVDA, JAWS, Narrateur).
 
@@ -39,7 +39,17 @@ que Voxpage ecrit (hors fichiers audio). Supprimez-le pour revenir aux reglages
 d'origine. Si le dossier n'est pas modifiable (disque protege en ecriture),
 Voxpage utilise alors %APPDATA%\Voxpage.
 Les voix sont dans le dossier "voices" (une voix par sous-dossier).
+Les modeles de lecture des pages scannees (OCR) sont dans le dossier "ocr".
 Les fichiers audio sont crees a cote du document, ou la ou vous le choisissez.
+
+PAGES SCANNEES (OCR)
+--------------------
+Les pages sans texte (scans, photos de pages) sont lues automatiquement par
+reconnaissance de caracteres, sur votre ordinateur. Une lecture par OCR peut
+contenir des erreurs : Voxpage vous le signale a la fin de la conversion
+(par exemple "pages 4 a 9 : texte reconnu par OCR"). Le reglage
+"Reconnaissance de texte" permet de la forcer sur toutes les pages ou de la
+desactiver. Compter plusieurs secondes par page.
 
 LIGNE DE COMMANDE
 -----------------

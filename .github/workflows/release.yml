@@ -36,6 +36,13 @@ jobs:
           PY
 
       - run: pip install -e ".[dev,gui,build]"
+      - name: Cache des modèles OCR
+        uses: actions/cache@v4
+        with:
+          path: ocr
+          key: ocr-${{ hashFiles('tools/fetch_ocr.py') }}
+      - name: Télécharger les modèles OCR
+        run: python tools/fetch_ocr.py
       - run: ruff check .
       - run: pytest -q
 

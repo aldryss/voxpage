@@ -12,6 +12,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "tools"))
+import fetch_ocr  # noqa: E402
 from fetch_voices import VOICES  # noqa: E402
 
 LICENSE_FILE = re.compile(r"(^|/)(licen[cs]e|copying|notice|copyright)[^/]*$", re.I)
@@ -29,6 +30,8 @@ Composants non Python embarqués ou utilisés par les composants ci-dessous
 - PDFium (BSD-3-Clause / Apache-2.0, Google), fourni avec pypdfium2 (pdfium.dll).
 - wxWidgets (wxWindows Library Licence 3.1), fourni avec wxPython.
 - LAME (LGPL), compilé dans lameenc (LGPL-3.0) pour l'encodage MP3.
+- OpenCV (Apache-2.0), fourni avec opencv-python-headless (lecture et traitement d'images pour l'OCR).
+- GEOS (LGPL-2.1), fourni avec Shapely ; Clipper (licence Boost), fourni avec pyclipper.
 """
 
 
@@ -95,6 +98,10 @@ def build() -> str:
     for v in VOICES:
         parts.append(f"* {v['id']} : {v['attribution']}\n  Licence : {v['license']} - {v['source']}")
     parts.append("\nVoir aussi voices/README.md (réserve sur la licence du checkpoint d'origine).\n")
+    parts += ["MODÈLES DE RECONNAISSANCE DE CARACTÈRES (OCR)", "-------------------------------------------"]
+    for m in fetch_ocr.MODELS:
+        parts.append(f"* ocr/{m['file']} : {m['role']}\n  Licence : {fetch_ocr.LICENSE} - {fetch_ocr.SOURCE}")
+    parts.append("")
     parts += [STATIC, "COMPOSANTS PYTHON", "-----------------"]
     dists = _closure()
     for d in dists:

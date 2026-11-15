@@ -59,6 +59,20 @@ hiddenimports += collect_submodules("pdfminer")
 datas += collect_data_files("num2words")
 hiddenimports += collect_submodules("num2words")
 
+# OCR (RapidOCR + onnxruntime + OpenCV) : bibliothèques natives, fichiers de configuration du paquet
+# (config.yaml, default_models.yaml). Les modèles ne sont PAS pris dans le paquet rapidocr : ils sont livrés
+# dans ocr/ à côté de l'exécutable (assemble.py), à l'emplacement que lit voxpage.extract.ocr.
+OCR_SKIP_BACKENDS = ("pytorch", "paddle", "openvino", "tensorrt", "mnn")  # moteurs d'inférence non livrés
+for pkg in ("onnxruntime", "cv2", "shapely", "pyclipper"):
+    binaries += collect_dynamic_libs(pkg)
+hiddenimports += ["onnxruntime", "cv2", "shapely", "shapely.geometry", "pyclipper"]
+datas += [d for d in collect_data_files("rapidocr") if not d[0].endswith(".onnx")]
+hiddenimports += [
+    m for m in collect_submodules("rapidocr") if not any(f".{b}" in m for b in OCR_SKIP_BACKENDS)
+]
+hiddenimports += ["omegaconf", "yaml", "colorlog", "tqdm", "requests"]
+datas += collect_data_files("omegaconf")
+
 # wxPython : le hook fourni par PyInstaller gère wx ; on s'assure des modules utilisés
 hiddenimports += ["wx", "wx.adv"]
 
@@ -67,7 +81,7 @@ hiddenimports += collect_submodules("voxpage")
 
 EXCLUDES = [
     "tkinter", "unittest", "pytest", "test", "tests", "pydoc", "doctest", "distutils", "setuptools",
-    "pip", "IPython", "matplotlib", "scipy", "pandas", "PyInstaller",
+    "pip", "IPython", "matplotlib", "scipy", "pandas", "PyInstaller", "torch", "paddle", "openvino", "tensorrt",
 ]
 
 a = Analysis(  # noqa: F821
@@ -79,6 +93,8 @@ a = Analysis(  # noqa: F821
     excludes=EXCLUDES,
     noarchive=False,
 )
+# OpenCV embarque FFmpeg (31 Mo) pour la vidéo ; seule la lecture d'images est utilisée
+a.binaries = [b for b in a.binaries if "opencv_videoio_ffmpeg" not in b[0].lower()]
 pyz = PYZ(a.pure)  # noqa: F821
 
 
