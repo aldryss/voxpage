@@ -204,3 +204,39 @@ def test_exposant_ou_appel_de_note(before, exponent):
     from voxpage.extract.pdf_structure import _exponent_base
 
     assert _exponent_base(before, before.split(" ")[-1].lower()) is exponent
+
+
+def test_chapitre_trop_long_decoupe_au_niveau_inferieur():
+    """Cour des comptes, RPA 2023 : 6 signets de premier niveau pour 572 pages ; « La décentralisation
+    40 ans après » (pages 59 à 572) faisait un seul fichier de 17 heures en mode « chapitres »."""
+    from voxpage.extract.pdf_structure import Bookmark, _chapter_openers
+
+    toc = [
+        Bookmark("Sommaire", 0, 2, None),
+        Bookmark("Finances publiques", 0, 12, None),
+        Bookmark("I - Le déficit", 1, 15, None),  # chapitre court : ses sous-parties restent dedans
+        Bookmark("La décentralisation", 0, 58, None),
+        Bookmark("Synthèse", 1, 60, None),
+        Bookmark("Première partie", 1, 70, None),
+        Bookmark("1 Un élan à retrouver", 2, 72, None),
+        Bookmark("2 Les finances locales", 2, 124, None),
+        Bookmark("Seconde partie", 1, 210, None),
+        Bookmark("1 Développement économique", 2, 212, None),
+        Bookmark("Réponses", 3, 244, None),  # 66 pages : pas de découpage plus fin
+        Bookmark("2 Politiques sociales", 2, 278, None),
+        Bookmark("Conclusion", 1, 566, None),
+    ]
+    titles = [toc[n].title for n in sorted(_chapter_openers(toc, 0))]
+    assert titles == [
+        "Sommaire",
+        "Finances publiques",
+        "La décentralisation",
+        "Synthèse",
+        "Première partie",
+        "1 Un élan à retrouver",
+        "2 Les finances locales",
+        "Seconde partie",
+        "1 Développement économique",
+        "2 Politiques sociales",
+        "Conclusion",
+    ]

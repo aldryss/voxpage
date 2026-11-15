@@ -531,6 +531,32 @@ def _norm(s: str) -> str:
     return "".join(c for c in s if c.isalnum())
 
 
+MAX_CHAPTER_PAGES = 80
+
+
+def _chapter_openers(bookmarks: list[Bookmark], chapter_level: int) -> set[int]:
+    """Signets qui ouvrent un chapitre : ceux de `chapter_level`, plus, dans un chapitre de plus de
+    MAX_CHAPTER_PAGES pages, ceux du niveau inférieur (récursivement). Un chapitre de 500 pages (rapport
+    en deux grandes parties) ferait un fichier de 17 heures, impossible à parcourir à l'oreille."""
+    openers = {n for n, bm in enumerate(bookmarks) if bm.level == chapter_level}
+    last_page = max(bm.page for bm in bookmarks)
+    changed = True
+    while changed:
+        changed = False
+        ordered = sorted(openers)
+        for k, n in enumerate(ordered):
+            end_n = ordered[k + 1] if k + 1 < len(ordered) else len(bookmarks)
+            end_page = bookmarks[end_n].page if end_n < len(bookmarks) else last_page + 1
+            if end_page - bookmarks[n].page <= MAX_CHAPTER_PAGES:
+                continue
+            level = bookmarks[n].level
+            children = [m for m in range(n + 1, end_n) if bookmarks[m].level == level + 1]
+            if children and not set(children) <= openers:
+                openers.update(children)
+                changed = True
+    return openers
+
+
 def apply_bookmarks(
     blocks: list[_Block], bookmarks: list[Bookmark], chapter_level: int
 ) -> list[tuple[int, str]]:
@@ -538,9 +564,10 @@ def apply_bookmarks(
     (index du bloc, titre). Les signets de niveau `chapter_level` ouvrent un chapitre."""
     if not bookmarks:
         return []
+    openers = _chapter_openers(bookmarks, chapter_level)
     splits: list[tuple[int, str]] = []
     used: set[int] = set()
-    for bm in bookmarks:
+    for n, bm in enumerate(bookmarks):
         key = _norm(bm.title)
         idx = None
         if key:
@@ -556,7 +583,7 @@ def apply_bookmarks(
             blk = blocks[idx]
             blk.kind = "heading"
             blk.level = max(1, bm.level - chapter_level + 1)
-        if bm.level != chapter_level:
+        if n not in openers:
             continue
         if idx is None:
             for i, b in enumerate(blocks):
