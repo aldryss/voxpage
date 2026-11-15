@@ -88,7 +88,5 @@ def test_voices_dir(dirs, monkeypatch, tmp_path):
 def test_cli_version(capsys):
     from voxpage.cli import main
 
-    with pytest.raises(SystemExit) as e:
-        main(["--version"])
-    assert e.value.code == 0
+    assert main(["--version"]) == 0
     assert "0.1.0" in capsys.readouterr().out

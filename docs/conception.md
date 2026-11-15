@@ -151,12 +151,17 @@ def load() -> Settings ; def save(s: Settings) -> None ; def app_dir() -> Path ;
 
 # voxpage/pipeline.py
 def convert(input: Path, output: Path, settings: Settings,
-            progress: ProgressCb | None = None, cancel: CancelToken | None = None) -> ConvertResult
+            progress: ProgressCb | None = None, cancel: CancelToken | None = None,
+            engine: TtsEngine | None = None) -> ConvertResult   # engine : injection pour les tests
 @dataclass
 class ConvertResult:
     files: list[Path]; duration_s: float; warnings: list[str]
 def extract_text(input: Path, settings: Settings,
                  progress: ProgressCb | None = None, cancel: CancelToken | None = None) -> str   # « exporter le texte »
+class ConversionError(Exception): ...   # erreur prévue, message en français (aucun texte lisible, voix introuvable, sortie non inscriptible…)
+# Toute erreur remonte en ConversionError (ou Cancelled) et laisse le disque propre. Voix vide = première voix de la
+# langue du document ; voix d'une autre langue = avertissement, pas de changement. Segment en échec : une nouvelle
+# tentative, puis erreur citant le passage. extract_text : un segment par ligne, titres de chapitre sous la forme « == Titre == ».
 ```
 
 Ajouter un format d'entrée = écrire un `Extractor` et l'enregistrer ; rien d'autre ne change.
