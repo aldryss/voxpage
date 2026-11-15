@@ -11,7 +11,7 @@ from voxpage.normalize import SpeechChapter, normalize, spoken_title
 from voxpage.normalize.text import has_content
 from voxpage.progress import Cancelled, CancelToken, ProgressCb
 from voxpage.settings import Settings
-from voxpage.tts.base import TtsEngine, Voice
+from voxpage.tts.base import TtsEngine, Voice, default_voice
 
 EXTRACT_SHARE = 0.10  # part de la progression consacrée à la lecture du document
 _QUOTE_MAX = 80
@@ -107,7 +107,7 @@ def _choose_voice(engine: TtsEngine, settings: Settings, doc: Document) -> tuple
                 f"({doc.lang}) : la prononciation risque d'être mauvaise."
             )
     else:
-        voice = next((v for v in voices if _lang_of(v.lang) == doc_lang), voices[0])
+        voice = default_voice(voices, doc_lang or "fr") or voices[0]
     if not 0 <= settings.speaker < max(1, len(voice.speakers)):
         raise ConversionError(f"Le locuteur {settings.speaker} n'existe pas pour la voix « {voice.name} ».")
     return voice, warnings

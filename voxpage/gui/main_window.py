@@ -19,6 +19,7 @@ import wx.adv
 from voxpage.gui import model as m
 from voxpage.gui.deps import GuiDeps, default_deps
 from voxpage.progress import Cancelled, CancelToken
+from voxpage.tts.base import default_voice
 
 try:  # Windows seulement
     import winsound
@@ -230,7 +231,10 @@ class MainWindow(wx.Frame):
 
     def _apply_settings(self) -> None:
         s = self.settings
-        idx = next((i for i, v in enumerate(self.voices) if v.id == s.voice_id), 0)
+        idx = next((i for i, v in enumerate(self.voices) if v.id == s.voice_id), None)
+        if idx is None:  # aucun réglage enregistré : voix française par défaut (pas la première)
+            chosen = default_voice(self.voices, "fr")
+            idx = self.voices.index(chosen) if chosen in self.voices else 0
         if self.voices:
             self.voice_choice.SetSelection(idx)
         self._fill_speakers()
