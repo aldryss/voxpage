@@ -125,3 +125,22 @@ def test_bad_speaker():
         pytest.skip("aucune voix fr")
     with pytest.raises(TtsError, match="Locuteur"):
         get_engine().synthesize(FR, ids[0], speaker=99)
+
+
+def test_dossier_de_voix_ascii_inchange(tmp_path):
+    from voxpage.tts.sherpa import ascii_voice_folder
+
+    assert ascii_voice_folder(tmp_path, windows=True) == tmp_path
+    assert ascii_voice_folder(tmp_path / "é", windows=False) == tmp_path / "é"
+
+
+def test_dossier_de_voix_accentue_copie_si_pas_de_nom_court(tmp_path, monkeypatch):
+    from voxpage.tts import sherpa
+
+    src = tmp_path / "José" / "voix"
+    src.mkdir(parents=True)
+    (src / "tokens.txt").write_text("x", encoding="utf-8")
+    monkeypatch.setattr(sherpa, "_short_path", lambda p: None)
+    monkeypatch.setattr(sherpa.tempfile, "tempdir", str(tmp_path))
+    out = sherpa.ascii_voice_folder(src, windows=True)
+    assert str(out).isascii() and (out / "tokens.txt").read_text(encoding="utf-8") == "x"

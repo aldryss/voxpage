@@ -1,7 +1,10 @@
 """Moteur de synthèse : sherpa-onnx + voix Piper (VITS), 100 % local."""
 
+import atexit
 import json
 import os
+import shutil
+import tempfile
 import threading
 from pathlib import Path
 
@@ -26,6 +29,36 @@ def clamp_speed(speed: float) -> float:
 def default_threads() -> int:
     """Environ le nombre de cœurs physiques (cpu_count / 2 : hyperthreading), de 1 à 4."""
     return max(1, min(MAX_THREADS, (os.cpu_count() or 2) // 2))
+
+
+def _short_path(path: Path) -> Path | None:
+    """Nom court 8.3 (ASCII) d'un chemin existant, sous Windows ; None si indisponible."""
+    import ctypes
+
+    buf = ctypes.create_unicode_buffer(32768)
+    n = ctypes.windll.kernel32.GetShortPathNameW(str(path), buf, len(buf))  # type: ignore[attr-defined]
+    return Path(buf.value) if 0 < n < len(buf) and buf.value.isascii() else None
+
+
+def ascii_voice_folder(folder: Path, windows: bool | None = None) -> Path:
+    """Chemin du dossier de voix utilisable par eSpeak NG et onnxruntime.
+
+    Sous Windows ces bibliothèques lisent les chemins en codage « ANSI » : un accent dans le chemin
+    (« C:\\Users\\José\\… ») les met en échec. On passe par le nom court 8.3, ou, à défaut, par une
+    copie temporaire dans un dossier au nom ASCII.
+    """
+    if windows is None:
+        windows = os.name == "nt"
+    if not windows or str(folder).isascii():
+        return folder
+    short = _short_path(folder)
+    if short is not None:
+        return short
+    tmp = Path(tempfile.mkdtemp(prefix="voxpage-"))
+    atexit.register(shutil.rmtree, tmp, True)
+    copy = tmp / "voix"
+    shutil.copytree(folder, copy)
+    return _short_path(copy) or copy
 
 
 class SherpaEngine:
@@ -96,6 +129,8 @@ class SherpaEngine:
                 raise TtsError(f"Voix « {voice_id} » incomplète : il manque {', '.join(missing)}.")
             import sherpa_onnx
 
+            folder = ascii_voice_folder(folder)
+            models = sorted(folder.glob("*.onnx"))
             vits = sherpa_onnx.OfflineTtsVitsModelConfig(
                 model=str(models[0]),
                 tokens=str(folder / "tokens.txt"),
