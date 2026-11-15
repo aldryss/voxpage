@@ -1,0 +1,33 @@
+[
+ {
+  "options": {},
+  "document": {
+   "title": "A Short Guide to Reading Aloud",
+   "author": null,
+   "lang": "en",
+   "chapters": [
+    {
+     "title": "",
+     "blocks": [
+      [
+       "heading",
+       1,
+       "A Short Guide to Reading Aloud"
+      ],
+      [
+       "paragraph",
+       0,
+       "Reading aloud is a well-known way to share a story. It brings a transformation of the text into sound, and it is self-evident that the reader must understand what is being read. Good information about the context helps the listener follow the plot."
+      ],
+      [
+       "paragraph",
+       0,
+       "The rest of this guide gives practical advice for each kind of document."
+      ]
+     ]
+    }
+   ],
+   "warnings": []
+  }
+ }
+]

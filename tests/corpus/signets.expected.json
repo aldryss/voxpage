@@ -1,0 +1,131 @@
+[
+ {
+  "options": {},
+  "document": {
+   "title": "Petit traité des signets",
+   "author": null,
+   "lang": "fr",
+   "chapters": [
+    {
+     "title": "Chapitre 1 — Origines",
+     "blocks": [
+      [
+       "heading",
+       1,
+       "Chapitre 1 — Origines"
+      ],
+      [
+       "paragraph",
+       0,
+       "Les signets d’un PDF forment une table des matières que les lecteurs d’écran savent parcourir. Ils sont la source la plus sûre pour découper un document en chapitres."
+      ],
+      [
+       "heading",
+       2,
+       "1.1 Les premiers livres"
+      ],
+      [
+       "paragraph",
+       0,
+       "Les premiers livres imprimés n’avaient ni table des matières ni numéros de page ; le lecteur se repérait aux lettrines et aux titres courants."
+      ]
+     ]
+    },
+    {
+     "title": "Chapitre 2 — Usages",
+     "blocks": [
+      [
+       "heading",
+       1,
+       "Chapitre 2 — Usages"
+      ],
+      [
+       "paragraph",
+       0,
+       "Aujourd’hui, presque tous les logiciels de mise en page produisent des signets à partir des titres du document."
+      ],
+      [
+       "heading",
+       2,
+       "2.1 Navigation"
+      ],
+      [
+       "paragraph",
+       0,
+       "Dans un fichier audio, chaque chapitre devient un point de navigation."
+      ]
+     ]
+    },
+    {
+     "title": "Chapitre 3 — Limites",
+     "blocks": [
+      [
+       "heading",
+       1,
+       "Chapitre 3 — Limites"
+      ],
+      [
+       "paragraph",
+       0,
+       "Certains documents n’ont aucun signet, ou des signets incomplets : il faut alors repérer les titres d’après leur taille et leur graisse."
+      ]
+     ]
+    }
+   ],
+   "warnings": []
+  }
+ },
+ {
+  "options": {
+   "pages": "2-3"
+  },
+  "document": {
+   "title": "Petit traité des signets",
+   "author": null,
+   "lang": "fr",
+   "chapters": [
+    {
+     "title": "Chapitre 2 — Usages",
+     "blocks": [
+      [
+       "heading",
+       1,
+       "Chapitre 2 — Usages"
+      ],
+      [
+       "paragraph",
+       0,
+       "Aujourd’hui, presque tous les logiciels de mise en page produisent des signets à partir des titres du document."
+      ],
+      [
+       "heading",
+       2,
+       "2.1 Navigation"
+      ],
+      [
+       "paragraph",
+       0,
+       "Dans un fichier audio, chaque chapitre devient un point de navigation."
+      ]
+     ]
+    },
+    {
+     "title": "Chapitre 3 — Limites",
+     "blocks": [
+      [
+       "heading",
+       1,
+       "Chapitre 3 — Limites"
+      ],
+      [
+       "paragraph",
+       0,
+       "Certains documents n’ont aucun signet, ou des signets incomplets : il faut alors repérer les titres d’après leur taille et leur graisse."
+      ]
+     ]
+    }
+   ],
+   "warnings": []
+  }
+ }
+]

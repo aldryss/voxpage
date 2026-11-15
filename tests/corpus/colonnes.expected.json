@@ -1,0 +1,78 @@
+[
+ {
+  "options": {},
+  "document": {
+   "title": "La lecture à voix haute",
+   "author": "Collectif",
+   "lang": "fr",
+   "chapters": [
+    {
+     "title": "",
+     "blocks": [
+      [
+       "heading",
+       1,
+       "La lecture à voix haute"
+      ],
+      [
+       "paragraph",
+       0,
+       "Lire à voix haute est une pratique ancienne qui retrouve aujourd’hui une place nouvelle, grâce aux livres audio et aux outils de synthèse vocale. Ce dossier en retrace l’histoire et en présente les usages actuels, en particulier pour les personnes malvoyantes."
+      ],
+      [
+       "paragraph",
+       0,
+       "Dans l’Antiquité, la lecture silencieuse était rare : on lisait en prononçant les mots, seul ou devant un auditoire. Les copistes eux-mêmes murmuraient les textes qu’ils recopiaient, et les bibliothèques étaient des lieux bruyants où chacun suivait sa propre lecture."
+      ],
+      [
+       "paragraph",
+       0,
+       "Au Moyen Âge, les monastères organisaient des lectures pendant les repas. Un moine lisait un texte édifiant tandis que les autres mangeaient en silence. Cette tradition a laissé des traces dans la manière dont les textes étaient ponctués, pour guider la respiration du lecteur et l’intonation des phrases les plus longues, que l’on découpait en segments faciles à dire."
+      ],
+      [
+       "paragraph",
+       0,
+       "Avec l’imprimerie, la lecture devient progressivement une activité privée. Pourtant, la lecture collective ne disparaît pas : dans les ateliers, les cafés ou les veillées, un lecteur partage le journal ou le roman du moment avec ceux qui ne savent pas lire, ou qui préfèrent écouter."
+      ],
+      [
+       "paragraph",
+       0,
+       "Aujourd’hui, la synthèse vocale permet à chacun d’écouter n’importe quel texte. Sa qualité dépend toutefois de la fidélité de la transcription : un en-tête lu au milieu d’une phrase ou une note mal placée suffit à rendre un passage incompréhensible."
+      ],
+      [
+       "heading",
+       2,
+       "Deuxième partie"
+      ],
+      [
+       "paragraph",
+       0,
+       "Les premiers appareils de lecture automatique datent des années soixante-dix. Ils étaient lourds, coûteux et réservés à quelques bibliothèques spécialisées, mais ils ont ouvert la voie aux outils que nous connaissons."
+      ],
+      [
+       "paragraph",
+       0,
+       "Les voix de synthèse ont longtemps paru mécaniques. Les progrès récents les rendent plus naturelles, au point qu’il devient possible d’écouter un roman entier sans fatigue, à condition que le texte lu soit propre."
+      ],
+      [
+       "paragraph",
+       0,
+       "La préparation du texte reste donc essentielle : ordre de lecture, suppression des éléments répétés, recollage des mots coupés en fin de ligne et traitement des notes sont autant d’étapes indispensables pour obtenir une écoute agréable."
+      ],
+      [
+       "heading",
+       3,
+       "À retenir"
+      ],
+      [
+       "paragraph",
+       0,
+       "Un texte bien préparé se lit dans l’ordre voulu par l’auteur, sans numéros de page ni en-têtes, et sans mots coupés."
+      ]
+     ]
+    }
+   ],
+   "warnings": []
+  }
+ }
+]

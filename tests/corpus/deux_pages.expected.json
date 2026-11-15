@@ -1,0 +1,28 @@
+[
+ {
+  "options": {},
+  "document": {
+   "title": "Les registres paroissiaux",
+   "author": null,
+   "lang": "fr",
+   "chapters": [
+    {
+     "title": "",
+     "blocks": [
+      [
+       "paragraph",
+       0,
+       "Les archives départementales conservent des milliers de registres paroissiaux. Ces documents, rédigés à la main pendant plusieurs siècles, permettent de retracer l’histoire des familles et des villages. Leur consultation, longtemps réservée aux chercheurs, est désormais ouverte à tous grâce à la numérisation, qui a demandé des années de travail et qui se poursuit encore aujourd’hui dans de nombreux départements, avec l’aide de bénévoles passionnés."
+      ],
+      [
+       "paragraph",
+       0,
+       "Une seconde campagne commencera au printemps prochain."
+      ]
+     ]
+    }
+   ],
+   "warnings": []
+  }
+ }
+]

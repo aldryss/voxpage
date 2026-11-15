@@ -1,0 +1,88 @@
+[
+ {
+  "options": {},
+  "document": {
+   "title": "Guide d’essai de Voxpage",
+   "author": "Équipe Voxpage",
+   "lang": "fr",
+   "chapters": [
+    {
+     "title": "",
+     "blocks": [
+      [
+       "heading",
+       1,
+       "Les essais"
+      ],
+      [
+       "paragraph",
+       0,
+       "Ce guide accompagne les premiers essais du logiciel. Il décrit les étapes à suivre, les réglages conseillés et les erreurs les plus fréquentes, afin que chacun puisse convertir ses documents sans aide extérieure."
+      ],
+      [
+       "paragraph",
+       0,
+       "La première étape consiste à choisir le fichier. Un document bien structuré, avec des titres et des paragraphes clairement séparés, donnera toujours un meilleur résultat qu’une simple image de page. Il est conseillé de vérifier que le texte peut être sélectionné dans un lecteur de PDF ordinaire, car c’est le signe qu’il pourra être extrait."
+      ],
+      [
+       "paragraph",
+       0,
+       "La deuxième étape consiste à choisir la voix. Plusieurs voix sont livrées avec le logiciel ; elles diffèrent par leur timbre et leur débit, et chacun trouvera celle qui lui convient le mieux après quelques essais. La vitesse de lecture peut être réglée à tout moment."
+      ],
+      [
+       "paragraph",
+       0,
+       "Le chiffre à retenir est le suivant."
+      ],
+      [
+       "paragraph",
+       0,
+       "1789"
+      ],
+      [
+       "paragraph",
+       0,
+       "Guide d’essai de Voxpage"
+      ],
+      [
+       "paragraph",
+       0,
+       "La troisième étape est la conversion elle-même. Elle peut prendre quelques minutes pour un long document. Une barre de progression indique l’avancement, et la conversion peut être annulée à tout instant sans laisser de fichier incomplet sur le disque."
+      ],
+      [
+       "paragraph",
+       0,
+       "Enfin, le fichier audio produit peut être copié sur un téléphone, un baladeur ou une clé USB. Les chapitres du document deviennent des chapitres du fichier, ce qui permet de naviguer facilement d’une partie à l’autre, comme dans un livre audio du commerce."
+      ],
+      [
+       "paragraph",
+       0,
+       "Ces quelques étapes suffisent dans la plupart des cas. Pour les documents difficiles, comme les journaux à plusieurs colonnes ou les livres anciens numérisés, des réglages supplémentaires sont décrits dans la suite de ce guide, chapitre par chapitre, avec de nombreux exemples commentés."
+      ],
+      [
+       "paragraph",
+       0,
+       "Les exemples ont été choisis pour représenter la variété des documents que l’on rencontre au quotidien : courriers, notices, articles de presse, rapports et romans. Chacun d’eux est accompagné du fichier audio obtenu, afin que l’on puisse comparer le résultat avec le document d’origine et repérer les éventuelles différences."
+      ],
+      [
+       "paragraph",
+       0,
+       "Lorsque le résultat n’est pas satisfaisant, il est utile de noter la page concernée et de décrire le problème rencontré : un mot mal prononcé, une phrase coupée, un titre lu au mauvais endroit ou un tableau difficile à suivre. Ces remarques permettent d’améliorer le logiciel d’une version à l’autre, au bénéfice de tous les utilisateurs."
+      ],
+      [
+       "paragraph",
+       0,
+       "Les réglages avancés ne sont pas nécessaires pour commencer. Ils permettent toutefois d’adapter la lecture aux habitudes de chacun : annonce des titres, durée des pauses entre les paragraphes, traitement des notes de bas de page et découpage du fichier audio par chapitre."
+      ],
+      [
+       "paragraph",
+       0,
+       "Bonne écoute !"
+      ]
+     ]
+    }
+   ],
+   "warnings": []
+  }
+ }
+]

@@ -1,0 +1,28 @@
+[
+ {
+  "options": {},
+  "document": {
+   "title": "Typographie",
+   "author": null,
+   "lang": "fr",
+   "chapters": [
+    {
+     "title": "",
+     "blocks": [
+      [
+       "heading",
+       1,
+       "ÉCLATÉ PAR LE CRÉNAGE"
+      ],
+      [
+       "paragraph",
+       0,
+       "Le film flotte au vent, la fin est proche. Il dit : « bonjour » ! Le mot anticonstitutionnel est long. Les mots sont serrés mais restent bien séparés. Chaque lettre est posée séparément. Un texte légèrement interlettré reste lisible. Texte en faux gras imprimé deux fois."
+      ]
+     ]
+    }
+   ],
+   "warnings": []
+  }
+ }
+]

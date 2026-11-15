@@ -1,0 +1,53 @@
+[
+ {
+  "options": {},
+  "document": {
+   "title": "Quelques chiffres",
+   "author": null,
+   "lang": "fr",
+   "chapters": [
+    {
+     "title": "",
+     "blocks": [
+      [
+       "paragraph",
+       0,
+       "Le tableau suivant présente la population des quatre plus grandes communes de France, selon le recensement le plus récent."
+      ],
+      [
+       "table",
+       0,
+       "Commune; Population; Superficie (km²); Région\nParis; 2 133 111; 105; Île-de-France\nMarseille; 873 076; 241; Provence-Alpes-Côte d’Azur\nLyon; 522 250; 48; Auvergne-Rhône-Alpes\nToulouse; 504 078; 118; Occitanie"
+      ],
+      [
+       "caption",
+       0,
+       "Tableau 1 : population municipale en 2021 (source : Insee)."
+      ],
+      [
+       "paragraph",
+       0,
+       "La fréquentation de la médiathèque, elle, progresse régulièrement depuis l’ouverture du nouveau bâtiment, comme le montre le second tableau."
+      ],
+      [
+       "caption",
+       0,
+       "Tableau 2 – Fréquentation de la médiathèque."
+      ],
+      [
+       "table",
+       0,
+       "Année; Lecteurs inscrits; Livres prêtés\n2022; 3 410; 41 200\n2023; 3 980; 47 650\n2024; 4 215; 52 030"
+      ],
+      [
+       "paragraph",
+       0,
+       "Ces chiffres seront mis à jour chaque année."
+      ]
+     ]
+    }
+   ],
+   "warnings": []
+  }
+ }
+]

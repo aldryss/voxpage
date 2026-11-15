@@ -1,0 +1,131 @@
+[
+ {
+  "options": {
+   "footnotes": "skip"
+  },
+  "document": {
+   "title": "Le roman populaire",
+   "author": "Claire Dumas",
+   "lang": "fr",
+   "chapters": [
+    {
+     "title": "",
+     "blocks": [
+      [
+       "paragraph",
+       0,
+       "Le roman populaire connaît son âge d’or au XIXe siècle, lorsque des auteurs comme Hugo ou Dumas touchent un public immense grâce aux journaux et aux livrets de colportage. Les feuilletons paraissent dès le 1er janvier de chaque année, et les lecteurs attendent la suite avec impatience."
+      ],
+      [
+       "paragraph",
+       0,
+       "Une salle de lecture de 20 m² suffisait alors à accueillir tout un quartier, qui venait écouter la lecture du feuilleton du jour."
+      ],
+      [
+       "paragraph",
+       0,
+       "On estime que chaque exemplaire était lu par une dizaine de personnes, ce qui multiplie d’autant l’influence de ces récits sur la société."
+      ]
+     ]
+    }
+   ],
+   "warnings": []
+  }
+ },
+ {
+  "options": {
+   "footnotes": "inline"
+  },
+  "document": {
+   "title": "Le roman populaire",
+   "author": "Claire Dumas",
+   "lang": "fr",
+   "chapters": [
+    {
+     "title": "",
+     "blocks": [
+      [
+       "paragraph",
+       0,
+       "Le roman populaire connaît son âge d’or au XIXe siècle, lorsque des auteurs comme Hugo ou Dumas touchent un public immense grâce aux journaux et aux livrets de colportage. Les feuilletons paraissent dès le 1er janvier de chaque année, et les lecteurs attendent la suite avec impatience."
+      ],
+      [
+       "footnote",
+       0,
+       "Victor Hugo, Les Misérables, 1862."
+      ],
+      [
+       "footnote",
+       0,
+       "Le terme désigne ici l’ensemble des imprimés vendus par colportage."
+      ],
+      [
+       "paragraph",
+       0,
+       "Une salle de lecture de 20 m² suffisait alors à accueillir tout un quartier, qui venait écouter la lecture du feuilleton du jour."
+      ],
+      [
+       "paragraph",
+       0,
+       "On estime que chaque exemplaire était lu par une dizaine de personnes, ce qui multiplie d’autant l’influence de ces récits sur la société."
+      ],
+      [
+       "footnote",
+       0,
+       "Ce chiffre, souvent cité, provient d’une enquête menée auprès de deux cents lecteurs réguliers ; il doit être pris avec prudence."
+      ]
+     ]
+    }
+   ],
+   "warnings": []
+  }
+ },
+ {
+  "options": {
+   "footnotes": "end_of_chapter"
+  },
+  "document": {
+   "title": "Le roman populaire",
+   "author": "Claire Dumas",
+   "lang": "fr",
+   "chapters": [
+    {
+     "title": "",
+     "blocks": [
+      [
+       "paragraph",
+       0,
+       "Le roman populaire connaît son âge d’or au XIXe siècle, lorsque des auteurs comme Hugo ou Dumas touchent un public immense grâce aux journaux et aux livrets de colportage. Les feuilletons paraissent dès le 1er janvier de chaque année, et les lecteurs attendent la suite avec impatience."
+      ],
+      [
+       "paragraph",
+       0,
+       "Une salle de lecture de 20 m² suffisait alors à accueillir tout un quartier, qui venait écouter la lecture du feuilleton du jour."
+      ],
+      [
+       "paragraph",
+       0,
+       "On estime que chaque exemplaire était lu par une dizaine de personnes, ce qui multiplie d’autant l’influence de ces récits sur la société."
+      ],
+      [
+       "footnote",
+       0,
+       "Victor Hugo, Les Misérables, 1862."
+      ],
+      [
+       "footnote",
+       0,
+       "Le terme désigne ici l’ensemble des imprimés vendus par colportage."
+      ],
+      [
+       "footnote",
+       0,
+       "Ce chiffre, souvent cité, provient d’une enquête menée auprès de deux cents lecteurs réguliers ; il doit être pris avec prudence."
+      ]
+     ]
+    }
+   ],
+   "warnings": []
+  }
+ }
+]

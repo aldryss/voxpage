@@ -1,0 +1,38 @@
+[
+ {
+  "options": {},
+  "document": {
+   "title": "Le phare de Kerbrat",
+   "author": "Anne Morvan",
+   "lang": "fr",
+   "chapters": [
+    {
+     "title": "",
+     "blocks": [
+      [
+       "heading",
+       1,
+       "Le phare de Kerbrat"
+      ],
+      [
+       "paragraph",
+       0,
+       "Le phare de Kerbrat se dresse à la pointe d’un cap battu par les vents. Depuis plus d’un siècle, il guide les bateaux de pêche qui rentrent au port à la nuit tombée, et les anciens du village racontent encore les tempêtes où sa lumière fut le seul repère des marins."
+      ],
+      [
+       "paragraph",
+       0,
+       "Le gardien, Yves Le Goff, monte chaque soir les cent douze marches de l’escalier en colimaçon. Il vérifie la lampe, nettoie la lentille et note dans un grand cahier l’état du ciel et de la mer. « Un phare, dit-il, c’est une promesse faite à ceux qu’on ne verra jamais. »"
+      ],
+      [
+       "paragraph",
+       0,
+       "Aujourd’hui, la lumière est automatisée, mais le cahier continue d’être tenu, par habitude et par fidélité."
+      ]
+     ]
+    }
+   ],
+   "warnings": []
+  }
+ }
+]

@@ -1,0 +1,31 @@
+[
+ {
+  "options": {},
+  "document": {
+   "title": "Document mixte",
+   "author": null,
+   "lang": "fr",
+   "chapters": [
+    {
+     "title": "",
+     "blocks": [
+      [
+       "paragraph",
+       0,
+       "Cette première page contient du texte natif."
+      ]
+     ]
+    }
+   ],
+   "warnings": [
+    "Page 2 : aucun texte exploitable (page scannée ?). La reconnaissance de caractères (OCR) n'est pas disponible : contenu ignoré."
+   ]
+  }
+ },
+ {
+  "options": {
+   "pages": "2"
+  },
+  "error": "document scanné"
+ }
+]

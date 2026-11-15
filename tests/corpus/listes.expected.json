@@ -1,0 +1,83 @@
+[
+ {
+  "options": {},
+  "document": {
+   "title": "Préparer un voyage",
+   "author": null,
+   "lang": "fr",
+   "chapters": [
+    {
+     "title": "",
+     "blocks": [
+      [
+       "heading",
+       1,
+       "Préparer un voyage"
+      ],
+      [
+       "paragraph",
+       0,
+       "Avant de partir, vérifiez les points suivants :"
+      ],
+      [
+       "list_item",
+       0,
+       "le passeport, valide au moins six mois après la date du retour ;"
+      ],
+      [
+       "list_item",
+       0,
+       "les billets de train ou d’avion, imprimés ou enregistrés sur le téléphone, ainsi que les réservations d’hôtel et les coordonnées des personnes à prévenir en cas de besoin ;"
+      ],
+      [
+       "list_item",
+       0,
+       "une trousse de premiers secours."
+      ],
+      [
+       "paragraph",
+       0,
+       "Ensuite, organisez le départ dans l’ordre suivant :"
+      ],
+      [
+       "list_item",
+       0,
+       "1. Réserver un taxi pour la gare."
+      ],
+      [
+       "list_item",
+       0,
+       "2. Fermer l’eau, le gaz et toutes les fenêtres."
+      ],
+      [
+       "list_item",
+       0,
+       "3. Confier les clés à un voisin de confiance, qui pourra arroser les plantes et relever le courrier pendant toute la durée de l’absence."
+      ],
+      [
+       "paragraph",
+       0,
+       "Dans le sac à dos :"
+      ],
+      [
+       "list_item",
+       0,
+       "une gourde ;"
+      ],
+      [
+       "list_item",
+       0,
+       "un vêtement de pluie."
+      ],
+      [
+       "paragraph",
+       0,
+       "Bon voyage à tous !"
+      ]
+     ]
+    }
+   ],
+   "warnings": []
+  }
+ }
+]

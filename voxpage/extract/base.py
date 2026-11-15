@@ -12,6 +12,10 @@ class UnsupportedFormat(Exception):
     """Aucun extracteur n'est enregistré pour ce format."""
 
 
+class ExtractError(Exception):
+    """Le document ne peut pas être lu (protégé, endommagé, vide…) ; le message s'adresse à l'utilisateur."""
+
+
 @dataclass
 class ExtractOptions:
     ocr: Literal["auto", "never", "always"] = "auto"

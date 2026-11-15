@@ -2,9 +2,10 @@
 
 from pathlib import Path
 
-from voxpage.extract.base import ExtractOptions, Extractor, UnsupportedFormat
+from voxpage.extract.base import ExtractError, ExtractOptions, Extractor, UnsupportedFormat
 
 __all__ = [
+    "ExtractError",
     "ExtractOptions",
     "Extractor",
     "UnsupportedFormat",
@@ -33,6 +34,8 @@ def supported_extensions() -> list[str]:
     return sorted(_registry)
 
 
+from voxpage.extract.pdf import PdfExtractor  # noqa: E402
 from voxpage.extract.text import TextExtractor  # noqa: E402
 
 register(TextExtractor())
+register(PdfExtractor())
