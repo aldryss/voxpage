@@ -26,7 +26,7 @@ OCR_MODES = (("auto", "Automatique"), ("never", "Jamais"), ("always", "Toujours"
 # sans « & » ni « : » final.
 LABELS = {
     "input": "&Fichier à convertir",
-    "browse": "&Parcourir…",
+    "browse": "Parcour&ir…",
     "output": "Fichier de &sortie",
     "output_btn": "C&hoisir la sortie…",
     "voice": "&Voix",
@@ -40,7 +40,8 @@ LABELS = {
     "convert": "&Convertir",
     "cancel": "&Annuler",
     "export": "E&xporter le texte…",
-    "open_folder": "Ouvrir le doss&ier",
+    "pron": "&Prononciations…",
+    "open_folder": "Ouvrir le dossi&er",
     "status": "&Résultat",
 }
 
@@ -53,6 +54,7 @@ SHORTCUTS_HELP = (
     "Tab et Maj+Tab : passer d'un contrôle à l'autre\n"
     "Alt + lettre soulignée : aller directement au contrôle correspondant\n\n"
     "Vous pouvez aussi glisser un fichier sur la fenêtre.\n"
+    "« Prononciations » ouvre le dictionnaire où l'on précise comment lire un mot, un nom ou un sigle.\n"
     "« Exporter le texte » enregistre le texte qui sera lu, pour le vérifier avant de convertir."
 )
 
@@ -173,7 +175,7 @@ class UiState(enum.Enum):
 
 SETTINGS_KEYS = ("input", "browse", "output", "output_btn", "voice", "speaker", "speed", "format",
                  "split", "footnotes", "ocr")
-ALL_KEYS = (*SETTINGS_KEYS, "preview", "convert", "cancel", "export", "open_folder")
+ALL_KEYS = (*SETTINGS_KEYS, "preview", "convert", "cancel", "export", "pron", "open_folder")
 
 
 def ui_flags(state: UiState, has_input: bool, has_voice: bool, multi_speaker: bool,

@@ -76,19 +76,102 @@ def _pump(app, cond: Callable[[], bool], timeout: float = 30.0) -> bool:
     return False
 
 
-def _check_accessibility(win) -> None:
-    labels = [m.LABELS[k] for k in win.controls]
+def _check_accessibility(win, labels_table: dict[str, str] | None = None) -> None:
+    table = labels_table or m.LABELS
+    labels = [table[k] for k in win.controls]
     dup = m.duplicate_accelerators(labels)
     _check(not dup, f"accélérateurs en double : {dup}")
     for key, ctrl in win.controls.items():
         name = ctrl.GetName().strip()
         _check(name, f"contrôle « {key} » sans nom accessible")
-        _check(name.startswith(m.plain_label(m.LABELS[key])), f"nom inattendu pour « {key} » : {name!r}")
+        _check(name.startswith(m.plain_label(table[key])), f"nom inattendu pour « {key} » : {name!r}")
         if key in win.static_labels:
             lab = win.static_labels[key]
             order = win.created
             _check(order.index(ctrl) == order.index(lab) + 1, f"libellé de « {key} » mal placé")
-    _check(win.gauge.GetName().strip(), "jauge sans nom")
+    if hasattr(win, "gauge"):
+        _check(win.gauge.GetName().strip(), "jauge sans nom")
+
+
+def _check_pronunciations(win, app, tmp: Path) -> None:
+    """Dialogue « Prononciations » : accessibilité, ajout, modification, suppression (fichier temporaire)."""
+    from voxpage.gui import pronunciations as p
+
+    path = Path(tmp) / "prononciations.txt"
+    path.write_text("# mon dictionnaire\n[fr]\nINRIA = inria\n", encoding="utf-8")
+    win.deps.pronunciations_path = lambda: path
+    dlg = win.make_pronunciation_dialog()
+    spoken: list[str] = []
+    errors: list[str] = []
+    dlg.synthesize = lambda text: (spoken.append(text), (np.zeros(2205, dtype=np.int16), 22050))[1]
+    dlg.show_error = errors.append
+    answers = {"confirm": False}
+    dlg.confirm = lambda title, text: answers["confirm"]
+    opened: list[Path] = []
+    dlg.open_editor = opened.append
+
+    def no_sound(path: str, *_args) -> None:  # pas de carte son sur le serveur d'intégration
+        dlg._busy = False
+        dlg._remove(path)
+
+    dlg._play = no_sound
+    dlg.Show()
+    app.Yield(True)
+    try:
+        _check_accessibility(dlg, p.LABELS)
+        _check(dlg.list.GetItemCount() == 1, "entrée existante absente de la liste")
+        _check(dlg.list.GetColumnCount() >= 2, "colonnes « Écrit » et « Dit » absentes")
+        _check(not dlg.add_btn.IsEnabled() and not dlg.delete_btn.IsEnabled(), "boutons actifs sans saisie")
+
+        def type_entry(written: str, said: str, lang: int = 0) -> None:
+            dlg.written_text.SetValue(written)
+            dlg.spoken_text.SetValue(said)
+            dlg.lang_choice.SetSelection(lang)
+
+        # Ajout
+        type_entry("EDF", "eu dé effe")
+        _check(dlg.add_btn.IsEnabled(), "« Ajouter » inactif avec une saisie")
+        dlg._on_add(None)
+        _check(dlg.list.GetItemCount() == 2, "ajout absent de la liste")
+        _check("ajouté" in dlg.status_text.GetValue(), "ajout non annoncé")
+        _check("EDF = eu dé effe" in path.read_text(encoding="utf-8"), "ajout non enregistré")
+        _check(path.read_text(encoding="utf-8").startswith("# mon dictionnaire"), "commentaire perdu")
+        # Doublon refusé, message en français
+        type_entry("EDF", "autre")
+        dlg._on_add(None)
+        _check(errors and "existe déjà" in errors[-1], "doublon non signalé")
+        # Modification
+        dlg.list.Select(1)
+        _check(dlg.selected_line() is not None, "sélection absente")
+        dlg._on_select(None)
+        _check(dlg.written_text.GetValue() == "EDF", "champ « Écrit » non rempli par la sélection")
+        dlg.spoken_text.SetValue("eu dé f")
+        dlg._on_modify(None)
+        _check("EDF = eu dé f" in path.read_text(encoding="utf-8"), "modification non enregistrée")
+        # Écoute : le « dit », puis la lecture sans dictionnaire
+        dlg._on_listen(True)
+        _check(_pump(app, lambda: not dlg._busy), "écoute non terminée")
+        dlg._on_listen(False)
+        _check(_pump(app, lambda: not dlg._busy), "écoute sans dictionnaire non terminée")
+        _check(spoken[:1] == ["eu dé f"] and len(spoken) == 2, f"textes synthétisés : {spoken}")
+        # Suppression : refusée puis acceptée
+        dlg._on_delete(None)
+        _check(dlg.list.GetItemCount() == 2, "suppression sans confirmation")
+        answers["confirm"] = True
+        dlg._on_delete(None)
+        _check(dlg.list.GetItemCount() == 1, "suppression non effectuée")
+        _check("EDF" not in path.read_text(encoding="utf-8"), "suppression non enregistrée")
+        _check("supprimé" in dlg.status_text.GetValue(), "suppression non annoncée")
+        # Fichier modifié dans l'éditeur : relu à la réactivation
+        path.write_text(path.read_text(encoding="utf-8") + "UE = u eu\n", encoding="utf-8")
+        dlg.model._mtime = None
+        dlg._on_activate(SimpleNamespace(GetActive=lambda: True, Skip=lambda: None))
+        _check(dlg.list.GetItemCount() == 2, "modification externe non relue")
+        # Ouvrir le fichier
+        dlg._on_open(None)
+        _check(opened == [path], "« Ouvrir le fichier » n'ouvre pas le fichier")
+    finally:
+        dlg.Destroy()
 
 
 def run_self_test() -> int:
@@ -120,6 +203,7 @@ def _run(wx, MainWindow) -> None:  # noqa: N803
         extensions=lambda: [".pdf", ".txt"],
         load_settings=Settings,
         save_settings=rec.saved.append,
+        pronunciations_path=lambda: Path(tempfile.gettempdir()) / "voxpage-selftest-prononciations.txt",
     )
     win = MainWindow(deps)
     errors: list[str] = []
@@ -189,6 +273,8 @@ def _run(wx, MainWindow) -> None:  # noqa: N803
         exported = out_txt.read_text(encoding="utf-8") if out_txt.is_file() else None
         _check(exported == "Texte extrait.", "export incorrect")
         _check("exporté" in win.status_text.GetValue(), "export non annoncé")
+
+        _check_pronunciations(win, app, Path(tmp))
 
         # Fermeture pendant une conversion : confirmation puis annulation propre.
         win.start_conversion()

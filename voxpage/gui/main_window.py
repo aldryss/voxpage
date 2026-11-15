@@ -152,13 +152,15 @@ class MainWindow(wx.Frame):
         self.ocr_choice = self.controls["ocr"]
 
         # Boutons d'action
-        buttons = wx.BoxSizer(wx.HORIZONTAL)
+        buttons = wx.WrapSizer(wx.HORIZONTAL)
         self.preview_btn = self._button("preview")
         self.convert_btn = self._button("convert")
         self.cancel_btn = self._button("cancel")
         self.export_btn = self._button("export")
+        self.pron_btn = self._button("pron")
         self.open_btn = self._button("open_folder")
-        for b in (self.preview_btn, self.convert_btn, self.cancel_btn, self.export_btn, self.open_btn):
+        for b in (self.preview_btn, self.convert_btn, self.cancel_btn, self.export_btn, self.pron_btn,
+                  self.open_btn):
             buttons.Add(b, 0, wx.RIGHT, gap)
         self.convert_btn.SetDefault()
 
@@ -184,7 +186,7 @@ class MainWindow(wx.Frame):
         frame_sizer.Add(self.panel, 1, wx.EXPAND)
         self.SetSizer(frame_sizer)
 
-        for key in ("browse", "output_btn", "preview", "convert", "cancel", "export", "open_folder"):
+        for key in ("browse", "output_btn", "preview", "convert", "cancel", "export", "pron", "open_folder"):
             self.controls[key].Bind(wx.EVT_BUTTON, getattr(self, f"_on_{key}"))
         self.input_text.Bind(wx.EVT_TEXT, self._on_input_text)
         self.output_text.Bind(wx.EVT_TEXT, self._on_output_text)
@@ -604,6 +606,44 @@ class MainWindow(wx.Frame):
                 subprocess.Popen(["xdg-open", str(folder)])  # noqa: S603,S607
         except OSError:
             self.show_error(f"Impossible d'ouvrir le dossier « {folder} ».")
+
+    # ------------------------------------------------------------------ prononciations
+
+    def _synthesize_with_voice(self, text: str) -> Any:
+        """Synthèse avec la voix, le locuteur et la vitesse choisis (appelé hors du fil de l'interface)."""
+        voice = self._current_voice()
+        if voice is None or self.engine is None:
+            raise RuntimeError("Aucune voix n'est disponible.")
+        return self.engine.synthesize(text, voice.id, max(0, self.speaker_choice.GetSelection()),
+                                      m.slider_to_speed(self.speed_slider.GetValue()))
+
+    def make_pronunciation_dialog(self) -> Any:
+        from voxpage.gui.pronunciation_dialog import PronunciationDialog
+
+        path = self.deps.pronunciations_path() if self.deps.pronunciations_path else None
+        if path is None:
+            from voxpage import settings
+
+            path = settings.pronunciations_path()
+        voice = self._current_voice()
+        return PronunciationDialog(
+            self,
+            Path(path),
+            self._synthesize_with_voice if voice is not None else None,
+            getattr(voice, "lang", "fr") if voice else "fr",
+        )
+
+    def _on_pron(self, evt: Any = None) -> None:
+        if self.state is not m.UiState.IDLE:
+            return
+        if self._playing:
+            self._stop_playback()
+        dlg = self.make_pronunciation_dialog()
+        try:
+            dlg.ShowModal()
+        finally:
+            dlg.Destroy()
+        self.pron_btn.SetFocus()
 
     # ------------------------------------------------------------------ extrait sonore
 

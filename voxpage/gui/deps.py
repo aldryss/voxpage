@@ -15,6 +15,7 @@ class GuiDeps:
     extensions: Callable[[], list[str]]
     load_settings: Callable[[], Any]
     save_settings: Callable[[Any], None]
+    pronunciations_path: Callable[[], Any] | None = None  # -> Path du dictionnaire de l'utilisateur
 
 
 def default_deps() -> GuiDeps:
@@ -50,4 +51,11 @@ def default_deps() -> GuiDeps:
 
         settings.save(s)
 
-    return GuiDeps(convert, extract_text, engine_factory, extensions, load_settings, save_settings)
+    def pronunciations_path() -> Any:
+        from voxpage import settings
+
+        return settings.pronunciations_path()
+
+    return GuiDeps(
+        convert, extract_text, engine_factory, extensions, load_settings, save_settings, pronunciations_path
+    )
