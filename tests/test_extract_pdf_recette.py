@@ -188,3 +188,19 @@ def test_en_tete_d_un_livre_centre_sur_une_page_plus_grande(tmp_path):
     text = "\n".join(_texts(path))
     assert "COUR DES COMPTES" not in text and "CHAPITRE PREMIER" not in text
     assert "ligne 0 de la page 1" in text and "ligne 29 de la page 4" in text
+
+
+@pytest.mark.parametrize(
+    ("before", "exponent"),
+    [
+        ("10", True),  # 10³
+        ("50 m", True),  # m²
+        ("(a+b)", True),
+        ("atteint en 2018", False),  # Cour des comptes : « en 2018⁶ », appel de note
+        ('on parle de « croissance acquise »)', False),  # « (… croissance acquise »)⁴ »
+    ],
+)
+def test_exposant_ou_appel_de_note(before, exponent):
+    from voxpage.extract.pdf_structure import _exponent_base
+
+    assert _exponent_base(before, before.split(" ")[-1].lower()) is exponent

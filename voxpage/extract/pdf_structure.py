@@ -30,6 +30,21 @@ _CALL = re.compile(r"^(?:\d{1,3}|[*†‡§¶]{1,3})(?:[,;]\s?(?:\d{1,3}|[*†�
 # Rendu d'une ligne : exposants, appels de note
 
 
+def _exponent_base(before: str, last_word: str) -> bool:
+    """Le texte qui précède un chiffre en exposant en fait-il un exposant mathématique (10³, m², (a+b)²)
+    plutôt qu'un appel de note (« en 2018⁶ », « (croissance acquise)⁴ ») ?"""
+    if last_word in _UNITS:
+        return True
+    if before[-1] == ")":
+        inner = before[before.rfind("(") + 1 : -1] if "(" in before else ""
+        return bool(inner) and " " not in inner.strip()  # (a+b)² ; une parenthèse de prose a des espaces
+    if before[-1].isdigit():
+        m = re.search(r"(\d+)$", before)
+        year = m is not None and len(m.group(1)) == 4 and 1500 <= int(m.group(1)) <= 2100
+        return not year  # « en 2018⁶ » : une année porte un appel de note, pas une puissance
+    return False
+
+
 def render_line(line: Line) -> tuple[str, list[str]]:
     """Texte brut de la ligne et appels de note qu'elle contient (retirés du texte)."""
     out = ""
@@ -48,7 +63,7 @@ def render_line(line: Line) -> tuple[str, list[str]]:
             last_word = before.split(" ")[-1].lower() if before else ""
             if not before:
                 out += t + " "  # marque en tête de ligne (note non détectée) : gardée telle quelle
-            elif t.isdigit() and (before[-1].isdigit() or before[-1] == ")" or last_word in _UNITS):
+            elif t.isdigit() and _exponent_base(before, last_word):
                 out += t.translate(_SUPERSCRIPT) + trail  # exposant mathématique : 10 m², 10³
             else:
                 calls.extend(re.split(r"[,;]\s?", t))

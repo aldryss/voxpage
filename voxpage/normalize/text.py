@@ -140,6 +140,19 @@ def _quotes(text: str) -> str:
     return text.replace("’", "'").replace("‘", "'")
 
 
+_SPACED_SIGN = re.compile(
+    r"(?:(?<=^)|(?<=[(;:])|(?<=[(;:] )|(?<=\bde )|(?<=\bà )|(?<=\bsoit )|(?<=\bet )|(?<=\bou ))([-−+]) (?=\d)"
+)
+
+
+def _spaced_sign(text: str, lang: str) -> str:
+    """Signe séparé de son nombre (« (+ 5,7 %) », « inférieur de - 0,3 % », cellule « - 2,9 ») : il se dit.
+    Jamais entre deux nombres (« 2010 - 2020 ») ni après un tiret de titre (« A - Une activité »)."""
+    words = {"+": "plus"}
+    minus = "moins" if lang == "fr" else "minus"
+    return _SPACED_SIGN.sub(lambda m: words.get(m.group(1), minus) + " ", text)
+
+
 def speak(sentence: str, lang: str) -> str:
     """Réécrit une phrase (ou un fragment) pour la synthèse vocale."""
     r = _rules(lang)
@@ -160,6 +173,7 @@ def speak(sentence: str, lang: str) -> str:
     t = numbers.units(t, lang)
     t = numbers.ordinals(t, lang)
     t = numbers.romans(t, lang)
+    t = _spaced_sign(t, lang)
     t = numbers.decimals(t, lang)
     for pat, rep in r.SYMBOLS:
         t = pat.sub(rep, t)

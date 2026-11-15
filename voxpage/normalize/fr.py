@@ -96,6 +96,9 @@ SYMBOLS: list[tuple[re.Pattern, str]] = [
         (r"∞", "infini"),
         (r"‰", " pour mille"),
         (r"(?<![\w])%", "pour cent"),
+        (r"\bMds?\s?€", "milliards d'euros"),
+        (r"\bM\s?€", "millions d'euros"),
+        (r"\bk\s?€", "milliers d'euros"),
         (r"€", "euros"),
     ]
 ]

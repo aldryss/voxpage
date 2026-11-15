@@ -125,6 +125,11 @@ FR = [
     ("(cf paragraphe 1)", "(confer paragraphe 1)"),
     ("Je laissai à M. le curé les francs.", "Je laissai à monsieur le curé les francs."),  # Maupassant
     ("Voici M. de Villefort", "Voici monsieur de Villefort"),
+    # Cour des comptes, RPA 2023
+    ("(+ 5,7 % en valeur)", "(plus cinq virgule sept pour cent en valeur)"),
+    ("inférieur de - 0,3 % à 2019", "inférieur de moins zéro virgule trois pour cent à 2019"),
+    ("Baisse du taux d'IS; - 2,9", "Baisse du taux d'IS; moins deux virgule neuf"),
+    ("(hors effet CICE, Md€)", "(hors effet CICE, milliards d'euros)"),
 ]
 
 # cas « ne pas toucher » : l'ambiguïté impose de laisser le texte tel quel
@@ -149,6 +154,8 @@ FR_INTACT = [
     "1, 2, 3 soleil",
     "pages 12, 345 et 400",
     "1, 234 personnes",
+    "de 2010 - 2020",
+    "A - Une activité",
     "La loi 99-209 et le COVID-19",
     "Le chat boit du lait.",
     "Elle a mangé 5 s.",
