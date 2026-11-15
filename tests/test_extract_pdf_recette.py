@@ -165,3 +165,26 @@ def test_fleuron_isole_ignore(tmp_path):
         c.drawString(200, 660, "n")
 
     assert _texts(_pdf(tmp_path / "fleuron.pdf", draw)) == ["Voici quelques-uns de ces récits :"]
+
+
+WORDS = "Alpha Bravo Charlie Delta Echo Foxtrot Golf Hotel India Juliett Kilo Lima Mike November".split()
+
+
+def test_en_tete_d_un_livre_centre_sur_une_page_plus_grande(tmp_path):
+    """Cour des comptes, RPA 2023 : maquette A5 centrée sur une page A4 ; l'en-tête « 6 COUR DES COMPTES »
+    est à 17 % du haut de la page, hors de la marge de 15 % : il était lu à chaque page paire."""
+    path = tmp_path / "rpa.pdf"
+    c = canvas.Canvas(str(path), pagesize=A4, invariant=1)
+    for n in range(1, 5):
+        c.setFont("Helvetica", 8)
+        c.drawString(150, H - 150, f"{n + 1} COUR DES COMPTES" if n % 2 else f"CHAPITRE PREMIER {n + 1}")
+        y = H - 190
+        for k in range(30):
+            c.setFont("Helvetica", 10)
+            c.drawString(150, y, f"{WORDS[n]} {WORDS[k % 14]} ligne {k} de la page {n}, texte courant.")
+            y -= 13
+        c.showPage()
+    c.save()
+    text = "\n".join(_texts(path))
+    assert "COUR DES COMPTES" not in text and "CHAPITRE PREMIER" not in text
+    assert "ligne 0 de la page 1" in text and "ligne 29 de la page 4" in text

@@ -1,7 +1,8 @@
 """En-têtes, pieds de page et numéros de page.
 
 Seuls les fragments des trois lignes les plus hautes et des trois plus basses de chaque page, situées dans
-la marge (15 % de la hauteur), sont candidats. Un candidat est supprimé si :
+la marge (15 % de la hauteur de la page, ou du cadre habituel du texte si la page est plus grande que la
+surface imprimée), sont candidats. Un candidat est supprimé si :
 
 - c'est un numéro de page (« 12 », « - 12 - », « Page 12 », « 12 / 40 », chiffres romains) dont l'écart
   avec le rang de la page est le même sur au moins deux pages (ou, si une seule page est analysée, égal
@@ -57,13 +58,29 @@ def _key(text: str) -> str:
 
 
 def _zone_rows(
-    page: PageData, frags: list[Frag]
+    page: PageData, frags: list[Frag], frame: tuple[float, float] | None = None
 ) -> tuple[list[list[Frag]], list[list[Frag]], list[list[Frag]]]:
     rows = _rows_of(frags)
     rows.sort(key=lambda r: min(f.top for f in r))
-    top = [r for r in rows[:MAX_ROWS] if max(f.bottom for f in r) <= page.height * ZONE]
-    bottom = [r for r in rows[-MAX_ROWS:][::-1] if min(f.top for f in r) >= page.height * (1 - ZONE)]
+    top_limit, bottom_limit = page.height * ZONE, page.height * (1 - ZONE)
+    if frame is not None:
+        # page plus grande que la surface imprimée (livre au format A5 centré sur une page A4) : les
+        # marges se mesurent aussi depuis le cadre habituel du texte
+        f_top, f_bottom = frame
+        top_limit = max(top_limit, f_top + ZONE * (f_bottom - f_top))
+        bottom_limit = min(bottom_limit, f_bottom - ZONE * (f_bottom - f_top))
+    top = [r for r in rows[:MAX_ROWS] if max(f.bottom for f in r) <= top_limit]
+    bottom = [r for r in rows[-MAX_ROWS:][::-1] if min(f.top for f in r) >= bottom_limit]
     return rows, top, bottom
+
+
+def _text_frame(pages: list[PageData]) -> tuple[float, float] | None:
+    """Cadre habituel du texte (médianes des hauts et bas de texte des pages), s'il y a assez de pages."""
+    tops = sorted(min(f.top for f in p.frags) for p in pages if p.frags)
+    bottoms = sorted(max(f.bottom for f in p.frags) for p in pages if p.frags)
+    if len(tops) < 2:
+        return None
+    return tops[len(tops) // 2], bottoms[len(bottoms) // 2]
 
 
 def detect_furniture(pages: list[PageData], body_size: float) -> set[int]:
@@ -71,8 +88,9 @@ def detect_furniture(pages: list[PageData], body_size: float) -> set[int]:
     counts: dict[tuple[str, str], set[int]] = defaultdict(set)
     offsets: dict[tuple[str, int], set[int]] = defaultdict(set)
     layout = {}
+    frame = _text_frame(pages)
     for page in pages:
-        rows, top, bottom = _zone_rows(page, page.frags)
+        rows, top, bottom = _zone_rows(page, page.frags, frame)
         layout[page.index] = (rows, top, bottom)
         for zone, zrows in (("top", top), ("bottom", bottom)):
             for row in zrows:

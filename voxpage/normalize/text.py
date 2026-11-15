@@ -36,6 +36,8 @@ def clean_block(text: str, kind: str = "paragraph") -> str:
     text = re.sub(r"[ \t\f\v]+", " ", text)
     text = re.sub(r"\s*\n\s*", " ", text).strip()
     text = _REF.sub("", text)
+    # points de conduite d'une table des matières (« Délibéré........ 5 ») : une simple pause
+    text = re.sub(r"\s*(?:[.…·]\s?){4,}\s*", ", ", text).strip(" ,")
     # puces
     text = re.sub(rf"^[{re.escape(_BULLETS)}]\s*", "", text)
     if kind == "list_item":

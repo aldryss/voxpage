@@ -242,6 +242,9 @@ def test_decaps(text, expected, lang):
 
 
 CLEAN = [
+    ("Délibéré.................................. 5", "paragraph", "Délibéré, 5"),  # Cour des comptes
+    ("Synthèse générale ……………… 61", "paragraph", "Synthèse générale, 61"),
+    ("Il hésita... puis partit.", "paragraph", "Il hésita... puis partit."),
     ("• Premier point", "list_item", "Premier point"),
     ("- Premier point", "list_item", "Premier point"),
     ("– Premier point", "list_item", "Premier point"),
