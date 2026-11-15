@@ -76,6 +76,38 @@ texte », PDF protégé « est protégé par un mot de passe : Voxpage ne peut p
 puis réessayez. », PDF corrompu ou tronqué « n'est pas un PDF valide ou il est endommagé », PDF entièrement
 scanné « ne contient pas de texte lisible : il s'agit probablement d'un document scanné… ».
 
+### Derniers défauts de fidélité avant la première version (issue #12)
+
+| # | Gr. | Défaut | Correction |
+|---|---|---|---|
+| 26 | G | Sigles écorchés par la voix : « ICF » → « isof », « SNCF » → « cent soft », « PIB » → « Puy B », « EDF » → « d'œufs » | `normalize/acronyms.py` : un sigle de 2 à 5 majuscules qui ne se prononce pas comme un mot est épelé, lettres séparées par une espace (« I C F »). Sont laissés tels quels : les acronymes de la liste « se lit comme un mot » (ONU, OTAN, UNESCO, INSEE, CNIL, SMIC, OVNI, SIDA, NASA, URSSAF…), les chiffres romains valides, les mots ordinaires en capitales (NON, STOP, ATTENTION…), les formes prononçables (deux syllabes consonne + voyelle, quatre lettres ou plus : NOTE, SIDA), les mots collés à un chiffre ou à un « s » (UE27, ONGs). En cas de doute, épeler. « S.N.C.F. » → « S N C F » ; « Hcéres » → « H C E R E S » |
+| 27 | G | Tableaux : rien n'indiquait à l'auditeur qu'un tableau commence ou finit ; valeurs lues en vrac | blocs `table` : « Tableau. » avant, « Fin du tableau. » après (anglais : « Table. » / « End of table. ») ; si la première ligne est un en-tête sûr (au moins deux libellés ou années, aucune valeur numérique, lignes de même largeur), chaque ligne est dite « en-tête : valeur » ; sinon les cellules se suivent séparées par une pause |
+| 28 | G | Colonnes de nombres sans filets et graduations de graphiques mêlées au corps du texte (« 950 900 850 Naissances 800… ») | `extract/pdf_tabular.py` : au moins 6 lignes consécutives très courtes, majoritairement numériques (au moins 4 lignes de nombres) et alignées en colonne forment un bloc `table` marqué `loose`, dit « Tableau ou graphique, lu tel quel. … Fin du tableau ou graphique. » ; avertissement « Pages 1 à 3 : tableaux ou graphiques lus sans structure. » ; aucun texte supprimé |
+| 29 | M | Sommaires lus avec points de conduite et numéros de page (« Délibéré, 5 ») | au moins 4 lignes consécutives « Titre ……… 12 » (ou « Titre 12 » avec numéros croissants alignés à droite, qui ne forment pas une numérotation 1, 2, 3…) : un élément de liste par titre, sans points ni numéro ; en dessous de 4 lignes, ou si les numéros ne se suivent pas dans l'ordre, rien n'est touché |
+| 30 | m | « GUY de maupassant », « HORS de france » : remise en casse incohérente | prénoms courts reconnus (GUY → Guy), « hors » mot courant, mots prononçables de quatre lettres ramenés en minuscules, nom propre après une particule dans un nom court : « Guy de Maupassant », « Hors de France » ; les sigles et chiffres romains restent en capitales |
+| 31 | M | Pictogrammes et symboles non dits (☎, ✉, ⚠, ✓, ✗, ★, ►) | nommés : « téléphone », « courrier », « attention », « coché », « croix », « étoile », « flèche » (anglais : telephone, mail, warning, checked, cross, star, arrow) ; ✓ et ✔ en tête d'une ligne de texte restent des puces, en tableau ce sont des valeurs ; fleurons et lignes purement décoratives (❦, ✦ ✦ ✦, * * *) toujours retirés |
+| 32 | M | Voix par défaut : l'interface choisissait la première voix par ordre alphabétique, donc la voix anglaise (`en_GB`) sans réglage enregistré | `tts.base.default_voice` : sans réglage, Siwis (français) ou Cori (anglais) selon la langue du document, vitesse 1,0, locuteur 0 ; dans `fetch_voices.py` et `voice.json`, Jessica reste le locuteur 0 d'UPMC, avant Pierre (conservé) |
+
+Mesure des sigles (issue #12). Phrase « Selon X, les chiffres ont baissé cette année. », 30 sigles français
+courants à épeler (ICF, PIB, SNCF, Hcéres, CNRS, RATP, EDF, TVA, PDG, CDD, CDI, RSA, CAF, DGFIP, FMI, OMS, UE, USA,
+SAS, HLM, TGV, RER, ADN, IRM, PME, CGT, PSG, BNP, AFP, IUT), deux synthèses chacun, 1×, transcrits par Whisper
+small ; compté juste si la transcription contient les lettres du sigle :
+
+| Voix | Avant (sigle brut) | Après (lettres séparées) |
+|---|---|---|
+| `fr_FR-siwis-medium` | 15/60 (25 %) | 39/60 (65 %) |
+| `fr_FR-upmc-medium`, Jessica | 34/60 (57 %) | 44/60 (73 %) |
+
+Écritures essayées (30 sigles, deux voix, une synthèse chacune ; le bruit de la synthèse et de la
+reconnaissance est de ±3) : sigle brut 9 et 18 sur 30 ; lettres séparées par une espace 21 et 24 ; noms de lettres
+écrits (« i cé effe ») 14 et 15 ; lettres séparées par des virgules 17 et 26 ; lettres pointées (« I. C. F. ») 1
+et 0 ; avec trait d'union, minuscules, espaces insécables ou fines : équivalentes aux espaces simples (20 à 23).
+Les espaces simples sont retenues (la plus simple, la meilleure pour Siwis, la voix par défaut). Restent mal
+dits (« EDF » entendu « ODF », « CDI » « sédis », « UE » « eux », « HCERES »), à cause de lettres que les voix
+prononcent mal isolées (E, U) : à écouter, pas de correction sûre. Les acronymes lus comme des mots ne sont pas
+mesurés ici (la reconnaissance entend des homophones : « OTAN » → « autant ») ; INRIA, lu comme un mot, reste
+entendu « Aria ».
+
 ### Synthèse déterministe
 
 Les voix Piper (VITS) tirent au hasard durées et timbre (`noise_scale` 0,667, `noise_scale_w` 0,8, valeurs
@@ -88,29 +120,31 @@ qui aplatit la prosodie et le timbre : c'est une perte de qualité, donc **non r
 
 ### Graves
 
-- **Tableaux et graphiques** : les valeurs des tableaux sans filets sont lues en vrac (« 2019 2020 2021…
-  67 258 67 442… »), les graduations des graphiques aussi (« 950 900 850 Naissances 800… »). Pour un
-  auditeur, un tableau lu en vrac est inexploitable et peut induire en erreur (valeur associée à la mauvaise
-  année). Correction lourde (reconnaissance de la grille, lecture « ligne : valeur ») : hors du périmètre de la
-  recette. Contournement : l'avertir dans la documentation.
-- **Sigles prononcés comme des mots ou écorchés par la voix** (eSpeak NG) : « ICF » entendu « l'HICF »,
-  « Lick », « l'ic fait » ; « PIB » entendu « pi B » ; « Hcéres » entendu « SER », « Cère » ; « INRIA »
-  entendu « Aria ». Pas de correction sûre et générale côté normalisation (épeler tous les sigles casserait
-  « ONU », « INSEE », « HAL ») ; piste : un lexique de sigles courants à épeler.
+- **Tableaux sans structure** : les zones numériques repérées (colonnes de valeurs, graduations) sont annoncées et
+  signalées, mais leurs valeurs sont lues en colonne sans lien avec les en-têtes (« 2019 2020 2021… » puis
+  « 67 258 67 442… »). Un tableau structuré (filets ou colonnes nettes) est lu « en-tête : valeur » seulement si
+  la première ligne est un en-tête sûr ; sinon les cellules se suivent. Reconnaissance de la grille des tableaux
+  sans filets : non faite.
+- **Sigles** : l'épellation corrige la plupart des cas (Siwis 25 % → 65 %, Jessica 57 % → 73 %) mais certaines
+  lettres isolées restent mal dites (E, U) ; INRIA, lu comme un mot, entendu « Aria ». Un sigle rare qui
+  ressemble à un mot (voyelles et consonnes alternées, quatre lettres ou plus) est lu tel quel.
 - **« Titre onze bis »** entendu « Citron se bise » avec la voix Siwis, à toutes les vitesses (enchaînement
   « titre onze » de la voix) : les intitulés de la Constitution sont mal compris avec cette voix.
-- **Pictogrammes** : « appuyez sur le bouton ou jusqu'à… » (notice théière) : les boutons dessinés ne sont pas
-  du texte ; la phrase dite est incomplète. Inhérent au document ; rien ne le signale à l'auditeur.
+- **Pictogrammes dessinés** : « appuyez sur le bouton ou jusqu'à… » (notice théière) : les boutons dessinés ne sont
+  pas du texte ; la phrase dite est incomplète. Inhérent au document ; rien ne le signale à l'auditeur (seuls les
+  symboles Unicode sont nommés).
 
 ### Moyens
 
 - Page de garde HAL bilingue (deux colonnes anglais / français) lue ligne à ligne en mélangeant les deux
-  langues : les colonnes sont fondues dans un même fragment dès la construction des lignes.
+  langues : les colonnes sont fondues dans un même fragment dès la construction des lignes (non traité : risque
+  de régression sur la mise en page).
 - Notice théière : police à petites capitales mal encodée (« DEsCRiPTion Du PRoDuiT ») — défaut du PDF, que
   la voix prononce mais de façon hachée ; ordre de lecture des étapes autour des illustrations (étapes 4-5
   lues après la 9) ; libellés « STOP » restants (corps 3 à 5 pt).
-- Tables des matières lues avec leurs numéros de page (sommaire du RPA, table finale Bibebook « III 1 5 7 11
-  17… »).
+- Tables des matières : les sommaires de quatre lignes consécutives ou plus sont nettoyés ; la table finale
+  Bibebook (« III 1 5 7 11 17… », titres et numéros sur des lignes séparées) et les sommaires dont une entrée
+  s'étale sur deux lignes ne sont pas reconnus (non revérifié sur le document) et sont lus tels quels.
 - Paragraphes numérotés en gras pris pour des titres : la notice 2041-E fait 48 chapitres (sans perte de
   texte ; un fichier par chapitre en mode « chapitres »).
 - Voix « Pierre » (`fr_FR-upmc-medium`, locuteur 1) nettement moins intelligible que les deux voix féminines
@@ -129,9 +163,8 @@ qui aplatit la prosodie et le timbre : c'est une perte de qualité, donc **non r
   caractères illisibles ignorés » est donné pour chaque page concernée.
 - Titre de nouvelle dit sous deux formes (« I La bécasse », signet, puis « La bécasse », titre de la page).
 - Fleuron collé en fin de paragraphe (« depuis 2002. l », Insee).
-- « GUY de maupassant », « HORS de france » : casse partielle (sans effet audible).
 - « ci- dessous », « trente- cinq », « 99- 209 » : espace présente dans le PDF après le trait d'union.
-- Auteur (« Hélène Thélot (Insee) ») et mentions de couverture pris pour des chapitres.
+- Auteur (« Hélène Thélot (Insee) ») et mentions de couverture pris pour des chapitres (non traité).
 - Valeurs de tableaux suffixées (« 646,0p », « 68 246p ») non normalisées.
 
 ## Aller-retour synthèse → reconnaissance
@@ -162,7 +195,7 @@ Erreurs imputables à la voix ou au texte dit, et suites données :
   « 1° » dit « 1 degré » → corrigé (#11) ; « n° 88-1028 » entendu « 80.1028 » → corrigé (#20).
 - Vitesse 1,5× : le WER monte de 6 à 11 points (fins de phrases avalées, « 40 ans » entendu « 41 ») ; 0,8×
   équivaut à 1× pour les voix féminines.
-- Sigles (« ICF », « Hcéres », « INRIA ») → restant (voir plus haut).
+- Sigles (« ICF », « Hcéres », « INRIA ») → épelés (#26), voir la mesure avant/après ; INRIA reste dit comme un mot.
 - Voix Pierre : « un virgule » entendu « un vieil gul », « par femme » entendu « barf femmes » — diction
   de la voix elle-même, pas de la normalisation.
 
@@ -208,13 +241,13 @@ limites ; non pour des documents riches en tableaux et en sigles.**
   correctement. La plupart des
   défauts graves trouvés (lettrines, signes moins, « 1° », en-têtes d'une maquette centrée) étaient
   fréquents dans leur genre de document : d'autres de ce type existent sûrement dans des genres non testés.
-- Ce qui reste insuffisant pour un auditeur aveugle : les tableaux et graphiques (valeurs lues en vrac,
-  impossibles à rattacher à leur ligne ou colonne), les sigles écorchés par la voix, et les pictogrammes non
-  dits des modes d'emploi. L'auditeur ne peut pas savoir qu'il a manqué quelque chose : à défaut de lecture
-  fidèle des tableaux, Voxpage devrait au moins l'annoncer (« tableau : lecture approximative »).
+- Ce qui reste insuffisant pour un auditeur aveugle : les tableaux sans filets et les graphiques (désormais
+  annoncés et signalés dans les avertissements, mais valeurs encore lues sans rattachement à leur colonne), les
+  sigles que les voix prononcent encore mal malgré l'épellation, et les pictogrammes dessinés des modes d'emploi.
+  L'auditeur sait au moins qu'un tableau ou un graphique commence et finit.
 - Voix : préférer les deux voix féminines (Siwis, Jessica) ; la voix masculine Pierre est nettement moins
   intelligible. À 1,5×, l'intelligibilité baisse nettement (WER + 6 à 11 points) ; 0,8× ne coûte rien.
 
-Priorités suggérées avant une version « stable » : lecture structurée ou signalement des tableaux, lexique de
-sigles à épeler, avertissement sur les pages à pictogrammes, puis une seconde recette sur d'autres genres
-(manuel scolaire, presse, documents bilingues).
+Priorités suggérées avant une version « stable » : reconnaissance de la grille des tableaux sans filets, avertissement
+sur les pages à pictogrammes, page de garde bilingue, puis une seconde recette sur d'autres genres (manuel
+scolaire, presse, documents bilingues).

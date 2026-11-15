@@ -50,6 +50,7 @@ class Block:
     text: str                 # texte brut du document, non normalisé pour la voix
     level: int = 0            # niveau de titre (1 = plus haut) ; 0 sinon
     page: int | None = None   # page d'origine, à partir de 1
+    loose: bool = False       # table seulement : zone tabulaire ou graphique sans structure fiable (lignes lues telles quelles)
 
 @dataclass
 class Chapter:
@@ -167,8 +168,8 @@ class ConvertResult:
 def extract_text(input: Path, settings: Settings,
                  progress: ProgressCb | None = None, cancel: CancelToken | None = None) -> str   # « exporter le texte »
 class ConversionError(Exception): ...   # erreur prévue, message en français (aucun texte lisible, voix introuvable, sortie non inscriptible…)
-# Toute erreur remonte en ConversionError (ou Cancelled) et laisse le disque propre. Voix vide = première voix de la
-# langue du document ; voix d'une autre langue = avertissement, pas de changement. Segment en échec : une nouvelle
+# Toute erreur remonte en ConversionError (ou Cancelled) et laisse le disque propre. Voix vide = voix par défaut de la
+# langue du document (Siwis en français, voir tts/base.default_voice ; à défaut la première voix de cette langue) ; voix d'une autre langue = avertissement, pas de changement. Segment en échec : une nouvelle
 # tentative, puis erreur citant le passage. extract_text : un segment par ligne, titres de chapitre sous la forme « == Titre == ».
 ```
 
@@ -181,6 +182,14 @@ règles documentées dans `pdf_text.py`) → titres (signets du PDF, sinon taill
 chapitres. Les pages sans texte exploitable sont confiées à `ocr.recognize` si le moteur est disponible ;
 sinon un avertissement les nomme. Les lignes reconnues deviennent des `PageData` et suivent la même chaîne que
 le texte natif (voir [ocr.md](ocr.md)).
+
+Repérages prudents (`pdf_tabular.py`, sans perte de texte) : au moins 4 lignes consécutives « Titre ……… 12 »
+forment un sommaire, réduit à ses titres (ni points de conduite ni numéros de page) ; au moins 6 lignes très
+courtes, majoritairement numériques et alignées forment un bloc `table` marqué `loose`, annoncé à l'auditeur
+« Tableau ou graphique, lu tel quel. » et signalé dans `Document.warnings`. Les tableaux structurés sont
+annoncés « Tableau. » / « Fin du tableau. » et lus « en-tête : valeur » quand la première ligne est un
+en-tête sûr. Les sigles qui ne se prononcent pas comme un mot sont épelés par `normalize/acronyms.py`
+(lettres séparées par une espace, forme que les voix disent le mieux ; liste de sigles lus comme des mots).
 
 ## Voix
 

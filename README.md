@@ -76,7 +76,7 @@ Découpage. « Un seul fichier » produit un fichier unique ; en MP3, les chapit
 
 Notes de bas de page. « Ignorer » (par défaut), « Lire dans le texte » ou « Lire en fin de chapitre ».
 
-OCR. « Automatique » (par défaut) ne tente la reconnaissance de texte que sur les pages qui n'ont pas de texte exploitable. « Jamais » et « Toujours » forcent le comportement. La reconnaissance de texte est en cours d'intégration : voir « Limites connues ».
+OCR. « Automatique » (par défaut) ne tente la reconnaissance de texte que sur les pages qui n'ont pas de texte exploitable. « Jamais » et « Toujours » forcent le comportement. Les pages reconnues par OCR peuvent contenir des erreurs : voir « Limites connues ».
 
 Réglages disponibles seulement en ligne de commande ou dans settings.json : les pages à lire (option --pages), la non-annonce des titres (option --sans-titres) et les durées de pause entre phrases, paragraphes et titres.
 
@@ -137,11 +137,14 @@ Un dossier de voix contient le modèle de voix (fichier .onnx), le fichier token
 
 ## Limites connues
 
-- Les étiquettes de graphiques sont lues comme de courts paragraphes.
-- Les tableaux sans filets (traits de séparation) sont lus dans le désordre.
-- Les mises en page de magazine complexes sont parfois mal ordonnées.
+- Tableaux : chaque tableau est annoncé (« Tableau. » au début, « Fin du tableau. » à la fin). Quand l'en-tête est identifiable, chaque ligne est lue sous la forme « en-tête : valeur » ; sinon les cellules sont lues à la suite, séparées par une pause. Un tableau très large ou complexe peut donc rester pénible à écouter.
+- Graphiques et tableaux sans filets que Voxpage ne sait pas structurer (colonnes de nombres, graduations d'axes) : ces lignes sont regroupées et annoncées « Tableau ou graphique, lu tel quel. », et un avertissement indique les pages concernées dans la zone « Résultat ». Leur contenu est lu mais sans lien entre une valeur et sa colonne : vérifiez ces passages dans le document.
+- Les images, schémas et pictogrammes dessinés (boutons d'un mode d'emploi, par exemple) ne sont pas du texte et ne sont pas lus. Quelques symboles courants dans le texte sont nommés (téléphone, attention, coché…).
+- Sigles : ceux qui ne se prononcent pas comme un mot sont épelés lettre par lettre (« S N C F »). Les sigles qui se lisent comme un mot (ONU, OTAN, INSEE, SMIC…) sont dits tels quels ; un sigle rare qui ressemble à un mot peut être mal prononcé.
+- Les sommaires sont lus sans leurs numéros de page lorsqu'ils sont reconnus avec certitude (au moins quatre lignes consécutives) ; sinon ils sont lus tels quels.
+- Les mises en page de magazine complexes sont parfois mal ordonnées. Une page de garde en deux colonnes (par exemple anglais et français côte à côte) peut mêler les deux langues.
 - Les formules mathématiques ne sont pas gérées.
-- Pages scannées : la reconnaissance optique de caractères (OCR) est en cours d'intégration. Pour l'instant, les pages sans texte sont signalées dans la zone « Résultat » et ne sont pas lues. Quand l'OCR sera disponible, des erreurs de lecture sont possibles : vérifiez les passages importants.
+- Pages scannées : la reconnaissance optique de caractères (OCR) est intégrée. Les pages sans texte exploitable sont reconnues automatiquement (réglage « Automatique »), ce qui prend plus de temps. La reconnaissance peut se tromper, surtout sur les scans de mauvaise qualité, les polices fantaisie ou les tableaux : un avertissement signale les pages concernées dans la zone « Résultat » ; vérifiez les passages importants.
 - L'interface n'a pas encore été validée par des utilisateurs de lecteur d'écran. Vos retours sont les bienvenus : ouvrez une issue sur le dépôt GitHub du projet.
 
 ## Confidentialité
