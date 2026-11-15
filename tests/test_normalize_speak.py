@@ -132,7 +132,7 @@ FR = [
     # Cour des comptes, RPA 2023
     ("(+ 5,7 % en valeur)", "(plus cinq virgule sept pour cent en valeur)"),
     ("inférieur de - 0,3 % à 2019", "inférieur de moins zéro virgule trois pour cent à 2019"),
-    ("Baisse du taux d'IS; - 2,9", "Baisse du taux d'IS; moins deux virgule neuf"),
+    ("Baisse du taux d'IS; - 2,9", "Baisse du taux d'I S; moins deux virgule neuf"),
     ("(hors effet CICE, Md€)", "(hors effet CICE, milliards d'euros)"),
 ]
 

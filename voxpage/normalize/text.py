@@ -2,7 +2,7 @@
 
 import re
 
-from . import en, fr, numbers
+from . import acronyms, en, fr, numbers
 
 _SPACES = "    "
 _UP = "A-ZÀ-ÖØ-Þ"
@@ -179,6 +179,7 @@ def speak(sentence: str, lang: str) -> str:
     t = numbers.units(t, lang)
     t = numbers.ordinals(t, lang)
     t = numbers.romans(t, lang)
+    t = acronyms.spell_acronyms(t, lang)
     t = _spaced_sign(t, lang)
     t = numbers.decimals(t, lang)
     for pat, rep in r.SYMBOLS:
