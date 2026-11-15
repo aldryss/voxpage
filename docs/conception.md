@@ -20,7 +20,7 @@ personnes malvoyantes. Windows, portable (un dossier à dézipper, rien à insta
 | Langage | Python 3.12 | meilleur outillage PDF et TTS ; cœur testable sous Linux |
 | Interface | wxPython (contrôles Win32 natifs) | bien supporté par les lecteurs d'écran (NVDA est écrit avec) |
 | Texte PDF | pdfminer.six (mise en page, polices) + pypdfium2 (signets, rendu des pages) | licences permissives (pas de PyMuPDF : AGPL) |
-| OCR (pages scannées) | à trancher par mesure dans l'issue OCR (RapidOCR ou Tesseract) | qualité mesurée sur du français |
+| OCR (pages scannées) | RapidOCR (onnxruntime) + modèles PP-OCR, voir [ocr.md](ocr.md) | choisi par mesure sur du français (CER, WER, accents, espaces) ; wheels Windows disponibles ; modèles livrés dans `ocr/` |
 | Synthèse vocale | sherpa-onnx épinglé `>=1.13,<2` + voix Piper (ONNX) | locale, rapide sur CPU, voix françaises claires ; la 2.x n'embarque plus espeak-ng (phonémisation des voix Piper), la 1.13.x oui et a une wheel Windows cp312 |
 | Encodage | lameenc (MP3), module `wave` (WAV), mutagen (tags, chapitres) | pas de ffmpeg à livrer |
 | Livrable | PyInstaller `--onedir`, zippé, construit sur `windows-latest` par GitHub Actions | pas de compilation croisée fiable depuis Linux |
@@ -85,9 +85,11 @@ class Extractor(Protocol):
 # voxpage/extract/base.py : class ExtractError(Exception)   # document illisible (protégé, endommagé, vide,
 #                           sélection de pages invalide) ; message en français destiné à l'utilisateur
 
-# voxpage/extract/ocr.py (issue OCR, facultatif) — appelé par l'extracteur PDF s'il existe :
-def ocr_page(pdf_path: Path, page_index: int, lang: str | None) -> str   # texte brut, paragraphes séparés
-                                                                         # par une ligne vide ; page_index à partir de 0
+# voxpage/extract/ocr.py — appelé par l'extracteur PDF quand available() est vrai (moteur importable et
+# modèles dans ocr/) ; sinon l'extracteur garde son comportement sans OCR :
+def available() -> bool
+def recognize(pdf_path: Path, page_index: int, lang: str | None) -> OcrPage   # page_index à partir de 0
+@dataclass OcrPage: width, height (points), lines: list[OcrLine(text, x0, top, x1, bottom, score)]
 # voxpage/lang.py
 def detect_lang(text: str) -> Literal["fr", "en"]    # mots-outils ; "fr" si égalité ou texte vide
 
@@ -176,8 +178,9 @@ Extracteur PDF (`voxpage/extract/pdf.py` et `pdf_*.py`) : caractères (pdfminer)
 retrait des en-têtes, pieds et numéros de page → notes de bas de page → tableaux et encadrés (filets, fonds) →
 ordre de lecture par découpage XY avec détection des gouttières → paragraphes (césures recollées selon les
 règles documentées dans `pdf_text.py`) → titres (signets du PDF, sinon taille et graisse), listes, légendes →
-chapitres. Les pages sans texte exploitable sont confiées à `ocr_page` si le module existe ; sinon un
-avertissement les nomme.
+chapitres. Les pages sans texte exploitable sont confiées à `ocr.recognize` si le moteur est disponible ;
+sinon un avertissement les nomme. Les lignes reconnues deviennent des `PageData` et suivent la même chaîne que
+le texte natif (voir [ocr.md](ocr.md)).
 
 ## Voix
 
