@@ -566,6 +566,7 @@ class MainWindow(wx.Frame):
         self.gauge.SetValue(100 if status == "ok" else self.gauge.GetValue())
         self._set_state(m.UiState.IDLE)
         if self._closing:
+            self.closed = True
             self.Destroy()
             return
         if status == "ok":

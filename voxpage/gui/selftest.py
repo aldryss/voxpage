@@ -62,6 +62,7 @@ def _pump(app, cond: Callable[[], bool], timeout: float = 30.0) -> bool:
     end = time.monotonic() + timeout
     while time.monotonic() < end:
         app.Yield(True)
+        app.ProcessIdle()
         if cond():
             return True
         time.sleep(0.01)
