@@ -387,14 +387,19 @@ def make_engine(name: str, args):
 
 class VoxpageEngine:
     """Chaîne complète de Voxpage : extracteur PDF en mode OCR sur le PDF « scanné » de la même page ;
-    le texte lu est celui des blocs (paragraphes séparés par une ligne vide)."""
+    le texte lu est celui des titres de chapitre et des blocs (séparés par une ligne vide)."""
 
     def read(self, image: Path) -> str:
         from voxpage.extract import ExtractOptions, extractor_for
 
         pdf = image.with_suffix(".pdf")
         doc = extractor_for(pdf).extract(pdf, ExtractOptions(ocr="always"))
-        return "\n\n".join(b.text for ch in doc.chapters for b in ch.blocks)
+        parts = []
+        for ch in doc.chapters:
+            if ch.title:
+                parts.append(ch.title)  # un titre de chapitre est lu à l'auditeur
+            parts += [b.text for b in ch.blocks]
+        return "\n\n".join(parts)
 
 
 def cmd_run(folder: Path, engines: list[str], args) -> None:
