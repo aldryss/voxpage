@@ -87,6 +87,7 @@ scanné « ne contient pas de texte lisible : il s'agit probablement d'un docume
 | 30 | m | « GUY de maupassant », « HORS de france » : remise en casse incohérente | prénoms courts reconnus (GUY → Guy), « hors » mot courant, mots prononçables de quatre lettres ramenés en minuscules, nom propre après une particule dans un nom court : « Guy de Maupassant », « Hors de France » ; les sigles et chiffres romains restent en capitales |
 | 31 | M | Pictogrammes et symboles non dits (☎, ✉, ⚠, ✓, ✗, ★, ►) | nommés : « téléphone », « courrier », « attention », « coché », « croix », « étoile », « flèche » (anglais : telephone, mail, warning, checked, cross, star, arrow) ; ✓ et ✔ en tête d'une ligne de texte restent des puces, en tableau ce sont des valeurs ; fleurons et lignes purement décoratives (❦, ✦ ✦ ✦, * * *) toujours retirés |
 | 32 | M | Voix par défaut : l'interface choisissait la première voix par ordre alphabétique, donc la voix anglaise (`en_GB`) sans réglage enregistré | `tts.base.default_voice` : sans réglage, Siwis (français) ou Cori (anglais) selon la langue du document, vitesse 1,0, locuteur 0 ; dans `fetch_voices.py` et `voice.json`, Jessica reste le locuteur 0 d'UPMC, avant Pierre (conservé) |
+| 33 | G | Sigles et mots que la voix dit mal malgré l'épellation (EDF, CDI, UE, INRIA « Aria »…), sans recours pour l'utilisateur | dictionnaire de prononciation « écrit = dit » (`normalize/lexicon.py`, issue #13) : dictionnaire livré par langue (15 entrées françaises mesurées, voir ci-dessous) et dictionnaire de l'utilisateur (`prononciations.txt`, dialogue « Prononciations », `--prononciations`) ; le dit n'est retraité par aucune règle de sigle, de nombre ou de casse |
 
 Mesure des sigles (issue #12). Phrase « Selon X, les chiffres ont baissé cette année. », 30 sigles français
 courants à épeler (ICF, PIB, SNCF, Hcéres, CNRS, RATP, EDF, TVA, PDG, CDD, CDI, RSA, CAF, DGFIP, FMI, OMS, UE, USA,
@@ -108,6 +109,60 @@ prononcent mal isolées (E, U) : à écouter, pas de correction sûre. Les acron
 mesurés ici (la reconnaissance entend des homophones : « OTAN » → « autant ») ; INRIA, lu comme un mot, reste
 entendu « Aria ».
 
+### Dictionnaire de prononciation livré (issue #13)
+
+Méthode (`tools/roundtrip.py --verifier-entrees`). Pour chaque écrit, la phrase est dite sans dictionnaire (ce
+que fait l'application avant l'issue : sigle épelé « E D F », ou mot laissé tel quel pour INRIA, CNES, BAC…) puis
+avec chaque « dit » candidat, par les voix Siwis et Jessica (`fr_FR-upmc-medium`, locuteur 0), vitesse 1,0, deux
+synthèses par phrase et par voix, puis transcription Whisper small. Une synthèse est comptée juste si la
+transcription contient les lettres de l'écrit (accents, espaces et ponctuation ignorés : « E.D.F. » = « edf »).
+Le bruit de la synthèse et de la reconnaissance est important (± 3 sur 8) : une entrée n'est retenue que si elle
+gagne au moins 3 réussites sur 8 à la première mesure **et** se confirme sur trois autres phrases (12 essais).
+
+1. Première mesure : 75 candidats (63 sigles français usuels, dont les 30 de l'issue #12, et 12 mots ou sigles lus
+   comme des mots : INRIA, INRAE, HAL, CNES, BAC, PACS…), 3 à 5 écritures chacun (noms de lettres séparés par des
+   espaces, des virgules ou des traits d'union ; variantes phonétiques pour les mots), phrases « Selon X, les
+   chiffres ont baissé cette année. » et « Le rapport de X a été publié hier. », 8 essais par écriture.
+2. Confirmation des 26 meilleurs (gain d'au moins 2) sur trois autres phrases (« La direction de X a répondu aux
+   questions. », « X est mentionné dans la note de service. », « Nous avons contacté X la semaine dernière. »),
+   12 essais. 14 entrées confirmées ; SNCF (– 7 sur 12 : la première mesure était un coup de chance), DRH, BNP, CAF,
+   CEA, AFNOR, DGFIP, OCDE, PACS… écartés.
+3. EDF, UE et Hcéres (cités plus haut) : 6 écritures de plus chacun sur cinq phrases (20 essais). UE gagne avec
+   « u euh » (9 → 14 sur 20, puis 9 → 12 sur 18 sur trois autres phrases, 18 → 26 sur 38 en tout). EDF : aucune
+   écriture ne dépasse l'épellation (10 sur 20 ; « euh dé effe » 8, « e, dé, effe » 6, « e-d-f » 5, « eu-dé-effe »
+   0). Hcéres : aucune écriture ne dépasse « H C E R E S » (3 sur 20 ; les autres 0) : pas d'entrée, la voix
+   confond les lettres E et la reconnaissance transcrit mal ce nom.
+
+Entrées livrées dans `prononciations-fr.txt` (15), réussites sur les essais de confirmation seuls (ils n'ont pas
+servi à choisir l'écriture) :
+
+| Écrit | Dit | Avant | Après |
+|---|---|---|---|
+| INRIA | inn ria | 0/12 | 11/12 |
+| CNES | cnès | 0/12 | 6/12 |
+| BAC | bak | 3/12 | 11/12 |
+| CDI | cé-dé-i | 5/12 | 12/12 |
+| CCI | cé-cé-i | 3/12 | 10/12 |
+| CNRS | cé-enne-erre-esse | 6/12 | 12/12 |
+| CAPES | kapesse | 2/12 | 5/12 |
+| CERN | sèrne | 6/12 | 9/12 |
+| QR | ku-erre | 6/12 | 10/12 |
+| USB | u-esse-bé | 7/12 | 10/12 |
+| IA | i, a | 6/12 | 10/12 |
+| EHESS | e ache e esse esse | 0/12 | 4/12 |
+| PIB | pé i bé | 7/12 | 10/12 |
+| IUT | i, u, té | 6/12 | 8/12 |
+| UE | u euh | 18/38 | 26/38 |
+| **Total** | | **75/206 (36 %)** | **154/206 (75 %)** |
+
+Limites : Whisper small n'est pas un auditeur (il rétablit parfois le mot attendu d'après le contexte) et les
+écritures retenues ne sont pas toujours naturelles à lire (« inn ria », « cnès »), mais elles sont celles que la
+voix dit le mieux. Les entrées sont sensibles à la casse (« BAC » mais pas « bac ») ; les sigles absents restent
+épelés par les règles de #12. Le dictionnaire anglais est livré vide : aucune entrée n'a été mesurée (le
+modèle de reconnaissance de l'outil est réglé sur le français). Les sigles que les voix disent le plus mal restent
+EDF, Hcéres, ICF, SARL, ENS, ADEME, PACS : l'utilisateur peut les corriger lui-même dans le dialogue « Prononciations »
+(par exemple `EDF = euh dé effe` si cette écriture lui convient mieux).
+
 ### Synthèse déterministe
 
 Les voix Piper (VITS) tirent au hasard durées et timbre (`noise_scale` 0,667, `noise_scale_w` 0,8, valeurs
@@ -126,8 +181,9 @@ qui aplatit la prosodie et le timbre : c'est une perte de qualité, donc **non r
   la première ligne est un en-tête sûr ; sinon les cellules se suivent. Reconnaissance de la grille des tableaux
   sans filets : non faite.
 - **Sigles** : l'épellation corrige la plupart des cas (Siwis 25 % → 65 %, Jessica 57 % → 73 %) mais certaines
-  lettres isolées restent mal dites (E, U) ; INRIA, lu comme un mot, entendu « Aria ». Un sigle rare qui
-  ressemble à un mot (voyelles et consonnes alternées, quatre lettres ou plus) est lu tel quel.
+  lettres isolées restent mal dites (E, U). Depuis #13, le dictionnaire de prononciation corrige INRIA (« Aria »
+  → « inn ria »), CDI, UE… (36 % → 75 % sur 15 entrées) et laisse à l'utilisateur les autres (EDF, Hcéres, SARL…).
+  Un sigle rare qui ressemble à un mot (voyelles et consonnes alternées, quatre lettres ou plus) est lu tel quel.
 - **« Titre onze bis »** entendu « Citron se bise » avec la voix Siwis, à toutes les vitesses (enchaînement
   « titre onze » de la voix) : les intitulés de la Constitution sont mal compris avec cette voix.
 - **Pictogrammes dessinés** : « appuyez sur le bouton ou jusqu'à… » (notice théière) : les boutons dessinés ne sont

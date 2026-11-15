@@ -1,0 +1,3 @@
+# English pronunciation dictionary shipped with Voxpage (docs/recette.md).
+# Format: written = spoken. Kept intentionally empty: no English entry measurably improved the voice
+# (the English acronym rules already spell what is not a word). Add your own in prononciations.txt.

@@ -1,0 +1,21 @@
+# Dictionnaire de prononciation livré avec Voxpage (français), voir docs/recette.md.
+# Chaque entrée a été vérifiée par aller-retour synthèse -> reconnaissance (tools/roundtrip.py,
+# --verifier-entrees) avec les voix Siwis et Jessica : elle n'est là que si elle améliore ce qui est entendu.
+# Votre propre dictionnaire (prononciations.txt) l'emporte ; « mot = » annule une entrée d'ici.
+# Les sigles absents de cette liste sont épelés automatiquement (normalize/acronyms.py).
+
+BAC = bak
+CAPES = kapesse
+CCI = cé-cé-i
+CDI = cé-dé-i
+CERN = sèrne
+CNES = cnès
+CNRS = cé-enne-erre-esse
+EHESS = e ache e esse esse
+IA = i, a
+INRIA = inn ria
+IUT = i, u, té
+PIB = pé i bé
+QR = ku-erre
+UE = u euh
+USB = u-esse-bé

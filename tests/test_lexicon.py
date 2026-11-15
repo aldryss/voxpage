@@ -586,3 +586,32 @@ def test_ecriture_atomique_et_relecture(tmp_path):
     f.write_text("Z = z\n", encoding="utf-8")
     lf.reload()
     assert [e.written for e in lf.entries] == ["Z"]
+
+
+SHIPPED = [
+    ("Le rapport de l'INRIA.", "Le rapport de l'inn ria."),
+    ("Un CDI et un CDD.", "Un cé-dé-i et un C D D."),
+    ("Dans l'UE (UE27).", "Dans l'u euh (UE27)."),
+    ("Le bac et la queue.", "Le bac et la queue."),  # entrées sensibles à la casse : « bac » est un mot
+    ("Le BAC.", "Le bak."),
+    ("Selon EDF.", "Selon E D F."),  # absent du dictionnaire livré : épelé par les règles de sigles
+]
+
+
+@pytest.mark.parametrize("text, expected", SHIPPED)
+def test_dictionnaire_livre_applique(text, expected):
+    lex = LexiconSource(shipped=True, user=False).load("fr").lexicon
+    chapters = normalize(doc(Block("paragraph", text)), NormalizeOptions(), lex)
+    assert [s.text for ch in chapters for s in ch.segments] == [expected]
+
+
+def test_dictionnaire_livre_anglais_sobre():
+    assert len(shipped_entries("en")) <= 10
+    assert LexiconSource(shipped=True, user=False).load("en").shipped_entries == len(shipped_entries("en"))
+
+
+def test_l_utilisateur_annule_une_entree_livree(tmp_path):
+    f = tmp_path / "p.txt"
+    f.write_text("INRIA =\nUE = u e\n", encoding="utf-8")
+    lex = LexiconSource(user_path=f).load("fr").lexicon
+    assert lex.say("l'INRIA et l'UE et le CDI") == "l'INRIA et l'u e et le cé-dé-i"

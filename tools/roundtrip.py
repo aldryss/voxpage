@@ -267,7 +267,9 @@ def parse_candidates(path: Path) -> list[tuple[str, list[str]]]:
     return out
 
 
-def check_entries(path: Path, threads: int, repeats: int, part: tuple[int, int]) -> list[dict]:
+def check_entries(
+    path: Path, threads: int, repeats: int, part: tuple[int, int], templates: list[str] | None = None
+) -> list[dict]:
     """Par écrit : réussites (sur les essais) sans dictionnaire, puis avec chaque dit candidat."""
     from voxpage.tts.sherpa import SherpaEngine
 
@@ -282,7 +284,7 @@ def check_entries(path: Path, threads: int, repeats: int, part: tuple[int, int])
         for dit, lex in variants:
             good = total = 0
             heard_all = []
-            for tpl in ENTRY_SENTENCES:
+            for tpl in templates or ENTRY_SENTENCES:
                 said = spoken(tpl.format(written), lex)
                 for vid, spk, _ in ENTRY_VOICES:
                     for _ in range(repeats):
@@ -328,6 +330,7 @@ def main() -> None:
     ap.add_argument("--verifier-entrees", type=Path, metavar="CANDIDATES", help="mesure des candidats")
     ap.add_argument("--repetitions", type=int, default=2, help="synthèses par phrase et par voix (entrées)")
     ap.add_argument("--gain", type=int, default=3, help="gain minimal (réussites) pour retenir une entrée")
+    ap.add_argument("--modeles", help="phrases d'essai des entrées, séparées par « | » ({} = l'écrit)")
     ap.add_argument("--partie", default="0/1", help="I/N : ne traite que la part I sur N des candidats")
     ap.add_argument("--resultats", type=Path, help="écrit les résultats bruts (JSON) des entrées")
     ap.add_argument("--sortie-dictionnaire", type=Path, help="écrit les entrées retenues")
@@ -346,7 +349,8 @@ def main() -> None:
         import json
 
         i, n = (int(x) for x in a.partie.split("/"))
-        results = check_entries(a.verifier_entrees, a.threads, a.repetitions, (i, n))
+        templates = a.modeles.split("|") if a.modeles else None
+        results = check_entries(a.verifier_entrees, a.threads, a.repetitions, (i, n), templates)
         if a.resultats:
             a.resultats.write_text(json.dumps(results, ensure_ascii=False, indent=1), encoding="utf-8")
         text, kept = entries_report(results, a.gain)
