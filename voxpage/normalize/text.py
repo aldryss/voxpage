@@ -36,6 +36,8 @@ def clean_block(text: str, kind: str = "paragraph") -> str:
     text = re.sub(r"[ \t\f\v]+", " ", text)
     text = re.sub(r"\s*\n\s*", " ", text).strip()
     text = _REF.sub("", text)
+    # appel de note collé au mot (« distribués(3) », « TAAF)(1) ») : la note n'est pas lue, l'appel non plus
+    text = re.sub(r"(?:(?<=[^\W\d_])|(?<=[)»”\"]))\(\d{1,2}\)(?=[\s.,;:)/]|$)", "", text)
     # points de conduite d'une table des matières (« Délibéré........ 5 ») : une simple pause
     text = re.sub(r"\s*(?:[.…·]\s?){4,}\s*", ", ", text).strip(" ,")
     # puces
@@ -170,6 +172,7 @@ def speak(sentence: str, lang: str) -> str:
     t = numbers.money(t, lang)
     t = numbers.percents(t, lang)
     t = numbers.enumeration_degree(t, lang)
+    t = numbers.legal_item(t, lang)
     t = numbers.units(t, lang)
     t = numbers.ordinals(t, lang)
     t = numbers.romans(t, lang)

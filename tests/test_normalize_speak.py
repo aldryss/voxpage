@@ -123,6 +123,8 @@ FR = [
     ("2° exercent en France une activité", "deuxièmement, exercent en France une activité"),
     ("12° à l'ombre", "12 degrés à l'ombre"),
     ("(cf paragraphe 1)", "(confer paragraphe 1)"),
+    ("prévu au 2° du 3 de l'article 158", "prévu au 2 du 3 de l'article 158"),
+    ("mentionnés au 2° du 2 bis", "mentionnés au 2 du 2 bis"),
     ("Je laissai à M. le curé les francs.", "Je laissai à monsieur le curé les francs."),  # Maupassant
     ("Voici M. de Villefort", "Voici monsieur de Villefort"),
     # Cour des comptes, RPA 2023
@@ -249,6 +251,9 @@ def test_decaps(text, expected, lang):
 
 
 CLEAN = [
+    ("Les revenus distribués(3) par des sociétés", "paragraph", "Les revenus distribués par des sociétés"),
+    ("les TAAF)(1) et vous percevez", "paragraph", "les TAAF) et vous percevez"),
+    ("la fonction f (2) et l'article 3 (1)", "paragraph", "la fonction f (2) et l'article 3 (1)"),
     ("Délibéré.................................. 5", "paragraph", "Délibéré, 5"),  # Cour des comptes
     ("Synthèse générale ……………… 61", "paragraph", "Synthèse générale, 61"),
     ("Il hésita... puis partit.", "paragraph", "Il hésita... puis partit."),

@@ -319,6 +319,14 @@ def enumeration_degree(text: str, lang: str) -> str:
     return _ENUM_DEGREE.sub(rep, text)
 
 
+_LEGAL_DEGREE = re.compile(r"\b(au|aux|le|les|du|des|et|ou) (\d{1,2}) ?°(?= (?:du|de|des|et|ou)\b|,)")
+
+
+def legal_item(text: str, lang: str) -> str:
+    """« au 2° du 3 de l'article 158 » : numéro d'un élément d'énumération juridique, lu « au 2 du 3 »."""
+    return _LEGAL_DEGREE.sub(r"\1 \2", text) if lang == "fr" else text
+
+
 def units(text: str, lang: str) -> str:
     r = _rules(lang)
     table = r.UNITS
