@@ -1,4 +1,4 @@
-"""Zones tabulaires sans structure (issue #12)."""
+"""Sommaires et zones tabulaires sans structure (issue #12)."""
 
 from pathlib import Path
 
@@ -7,7 +7,7 @@ import pytest
 from voxpage.extract import ExtractOptions, extractor_for
 from voxpage.extract.pdf_layout import Line, Span
 from voxpage.extract.pdf_structure import render_line
-from voxpage.extract.pdf_tabular import LooseItem, find_loose
+from voxpage.extract.pdf_tabular import LooseItem, TocEntry, find_loose, find_toc
 
 reportlab = pytest.importorskip("reportlab")
 from reportlab.lib.pagesizes import A4  # noqa: E402
@@ -23,6 +23,56 @@ def _line(text, x0=50.0, x1=None, top=0.0, page=0, region=0):
 
 def _stream(texts, **kw):
     return [_line(t, top=12.0 * i, **kw) for i, t in enumerate(texts)]
+
+
+def _texts(stream):
+    return [x.text if isinstance(x, TocEntry) else render_line(x)[0] for x in stream]
+
+
+TOC_POINTS = [
+    "Introduction ........................ 5",
+    "Chapitre 1. Le contexte ............... 9",
+    "Chapitre 2. Les résultats ............ 27",
+    "Conclusion ........................... 41",
+]
+
+
+def test_sommaire_a_points_de_conduite():
+    out = find_toc(_stream(TOC_POINTS), render_line)
+    assert [type(x) for x in out] == [TocEntry] * 4
+    assert _texts(out) == [
+        "Introduction", "Chapitre 1. Le contexte", "Chapitre 2. Les résultats", "Conclusion",
+    ]
+
+
+def test_sommaire_sans_points_numeros_alignes():
+    texts = ["Préface 7", "La naissance 11", "L'enfance 25", "La guerre 61", "La paix 102"]
+    stream = [_line(t, x1=480.0, top=12.0 * i) for i, t in enumerate(texts)]
+    out = find_toc(stream, render_line)
+    assert _texts(out) == ["Préface", "La naissance", "L'enfance", "La guerre", "La paix"]
+
+
+def test_trois_lignes_ne_font_pas_un_sommaire():
+    out = find_toc(_stream(TOC_POINTS[:3]), render_line)
+    assert all(not isinstance(x, TocEntry) for x in out)
+
+
+def test_numerotation_n_est_pas_un_sommaire():
+    texts = ["Étape 1", "Étape 2", "Étape 3", "Étape 4", "Étape 5"]
+    out = find_toc([_line(t, x1=480.0, top=12.0 * i) for i, t in enumerate(texts)], render_line)
+    assert all(not isinstance(x, TocEntry) for x in out)
+
+
+def test_nombres_non_croissants_pas_un_sommaire():
+    texts = ["Le prix 40", "La taille 12", "Le poids 70", "L'age 3"]
+    out = find_toc([_line(t, x1=480.0, top=12.0 * i) for i, t in enumerate(texts)], render_line)
+    assert all(not isinstance(x, TocEntry) for x in out)
+
+
+def test_prose_avec_nombre_final_intacte():
+    texts = ["Il a vu 3", "Elle est née en 1990", "Nous étions 12", "La route fait 40", "Ils sont 250"]
+    out = find_toc(_stream(texts), render_line)
+    assert _texts(out) == texts
 
 
 NUMS = ["950", "900", "850", "Naissances", "800", "750", "700"]
@@ -66,6 +116,26 @@ def _pdf(path: Path, draw) -> Path:
 
 def _doc(path: Path):
     return extractor_for(path).extract(path, ExtractOptions())
+
+
+def test_pdf_sommaire(tmp_path):
+    def draw(c):
+        c.setFont("Helvetica", 11)
+        y = 700
+        c.drawString(60, y + 40, "Voici d'abord un texte d'introduction qui précède le sommaire du livre.")
+        entries = [("Avant-propos", 5), ("Le début du voyage", 9), ("Les montagnes", 27), ("Le retour", 41)]
+        for t, n in entries:
+            c.drawString(60, y, t)
+            start = 60 + c.stringWidth(t, "Helvetica", 11) + 4
+            room = 498 - c.stringWidth(str(n), "Helvetica", 11) - start
+            c.drawString(start, y, "." * int(room / c.stringWidth(".", "Helvetica", 11)))
+            c.drawRightString(500, y, str(n))
+            y -= 16
+    doc = _doc(_pdf(tmp_path / "s.pdf", draw))
+    text = " ".join(b.text for ch in doc.chapters for b in ch.blocks)
+    for t in ("Avant-propos", "Le début du voyage", "Les montagnes", "Le retour"):
+        assert t in text
+    assert "...." not in text and "27" not in text and "41" not in text
 
 
 def test_pdf_zone_numerique_signalee(tmp_path):

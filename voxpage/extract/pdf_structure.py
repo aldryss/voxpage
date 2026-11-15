@@ -280,6 +280,14 @@ class Builder:
         b.text = "\n".join(r for r in rows if r.strip("; "))
         self.blocks.append(b)
 
+    def entry(self, line: Line, text: str) -> None:
+        """Ligne de sommaire réduite à son titre : un élément de liste."""
+        self.flush()
+        self.prev = None
+        self.start("list_item", line, text, [])
+        self.flush()
+        self.prev = None
+
     def loose(self, item) -> None:
         """Zone tabulaire ou graphique sans structure : un bloc `table`, chaque ligne lue telle quelle."""
         self.flush()

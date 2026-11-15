@@ -54,7 +54,7 @@ from voxpage.extract.pdf_structure import (
     reorder_continuations,
     word_stats,
 )
-from voxpage.extract.pdf_tabular import LooseItem, find_loose, loose_pages
+from voxpage.extract.pdf_tabular import LooseItem, TocEntry, find_loose, find_toc, loose_pages
 from voxpage.extract.pdf_text import clean_text
 from voxpage.lang import detect_lang
 from voxpage.progress import Cancelled, CancelToken, ProgressCb
@@ -430,11 +430,13 @@ class PdfExtractor:
             stream.extend(reading_order(p, frags, regions, body))
 
         stream = reorder_continuations(stream, body)
-        stream = find_loose(stream, render_line)
+        stream = find_loose(find_toc(stream, render_line), render_line)
         rendered: list[str] = []
         for it in stream:
             if isinstance(it, Line):
                 rendered.append(render_line(it)[0])
+            elif isinstance(it, TocEntry):
+                rendered.append(it.text)
             elif isinstance(it, LooseItem):
                 rendered.extend(render_line(ln)[0] for ln in it.lines)
             elif isinstance(it, TableItem):
@@ -451,6 +453,8 @@ class PdfExtractor:
             if isinstance(it, Line):
                 text, calls = render_line(it)
                 builder.add(it, text, calls)
+            elif isinstance(it, TocEntry):
+                builder.entry(it.line, it.text)
             elif isinstance(it, LooseItem):
                 builder.loose(it)
             elif isinstance(it, TableItem):
