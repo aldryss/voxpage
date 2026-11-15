@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "voxpage"
+version = "0.1.0"
+description = "Convertit un PDF en fichier audio pour les personnes malvoyantes"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pdfminer.six",
+    "pypdfium2",
+    "sherpa-onnx",
+    "numpy",
+    "lameenc",
+    "mutagen",
+    "num2words",
+    "Pillow",
+]
+
+[project.optional-dependencies]
+gui = ["wxPython"]
+dev = ["pytest", "ruff", "reportlab"]
+
+[project.scripts]
+voxpage = "voxpage.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["voxpage*"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

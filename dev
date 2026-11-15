@@ -1,0 +1,22 @@
+#!/bin/sh
+# Exécute une commande dans le conteneur de développement : ./dev pytest -q
+# Réseau coupé par défaut ; DEV_NET=1 ./dev <commande> pour l'autoriser.
+set -eu
+cd "$(dirname "$0")"
+[ $# -gt 0 ] || { echo "usage : ./dev <commande>" >&2; exit 2; }
+
+IMAGE=voxpage-dev
+hash=$(cat Dockerfile.dev pyproject.toml | sha256sum | cut -d' ' -f1)
+current=$(docker image inspect -f '{{index .Config.Labels "voxpage.hash"}}' "$IMAGE" 2>/dev/null || true)
+if [ "$current" != "$hash" ]; then
+    docker build -q -f Dockerfile.dev --label "voxpage.hash=$hash" -t "$IMAGE" . >/dev/null
+fi
+
+net=none
+[ "${DEV_NET:-0}" = 1 ] && net=bridge
+tty=-i
+[ -t 0 ] && [ -t 1 ] && tty=-it
+
+exec docker run --rm $tty --network "$net" --user "$(id -u):$(id -g)" \
+    --tmpfs /tmp:mode=1777 -e HOME=/tmp -e PYTHONPATH=/work \
+    -v "$PWD:/work" -w /work "$IMAGE" "$@"

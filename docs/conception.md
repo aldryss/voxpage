@@ -81,7 +81,11 @@ class Extractor(Protocol):
     def extract(self, path: Path, options: ExtractOptions,
                 progress: ProgressCb | None = None, cancel: CancelToken | None = None) -> Document: ...
 
-# voxpage/extract/__init__.py
+# voxpage/extract/base.py : class UnsupportedFormat(Exception)
+# voxpage/lang.py
+def detect_lang(text: str) -> Literal["fr", "en"]    # mots-outils ; "fr" si égalité ou texte vide
+
+# voxpage/extract/__init__.py  (l'extracteur .txt y est enregistré par défaut)
 def register(extractor: Extractor) -> None
 def extractor_for(path: Path) -> Extractor    # lève UnsupportedFormat
 def supported_extensions() -> list[str]
@@ -133,15 +137,21 @@ class AudioWriter:                            # utilisable avec `with`
 # voxpage/settings.py
 @dataclass
 class Settings:                               # sérialisé en JSON à côté de l'exécutable
-    voice_id: str; speaker: int; speed: float
-    extract: ExtractOptions; normalize: NormalizeOptions; audio: AudioOptions
+    voice_id: str = ""; speaker: int = 0; speed: float = 1.0
+    extract: ExtractOptions; normalize: NormalizeOptions; audio: AudioOptions   # valeurs par défaut des dataclasses
 def load() -> Settings ; def save(s: Settings) -> None ; def app_dir() -> Path ; def voices_dir() -> Path
+# settings.json : dans app_dir() (dossier de l'exe si gelé, sinon racine du dépôt) ; si non inscriptible,
+# repli sur %APPDATA%\Voxpage (Windows) ou ~/.config/voxpage. load() ignore clés inconnues et valeurs invalides.
+# voices_dir() = app_dir()/voices, surchargeable par la variable d'environnement VOXPAGE_VOICES.
 
 # voxpage/pipeline.py
 def convert(input: Path, output: Path, settings: Settings,
             progress: ProgressCb | None = None, cancel: CancelToken | None = None) -> ConvertResult
-# ConvertResult : files: list[Path], duration_s: float, warnings: list[str]
-def extract_text(input: Path, settings: Settings, ...) -> str      # « exporter le texte »
+@dataclass
+class ConvertResult:
+    files: list[Path]; duration_s: float; warnings: list[str]
+def extract_text(input: Path, settings: Settings,
+                 progress: ProgressCb | None = None, cancel: CancelToken | None = None) -> str   # « exporter le texte »
 ```
 
 Ajouter un format d'entrée = écrire un `Extractor` et l'enregistrer ; rien d'autre ne change.
