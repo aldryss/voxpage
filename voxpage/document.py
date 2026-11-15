@@ -12,6 +12,7 @@ class Block:
     text: str  # texte brut du document, non normalisé pour la voix
     level: int = 0  # niveau de titre (1 = plus haut) ; 0 sinon
     page: int | None = None  # page d'origine, à partir de 1
+    loose: bool = False  # table : zone soupçonnée d'être un tableau ou un graphique, sans structure fiable
 
 
 @dataclass

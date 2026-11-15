@@ -54,6 +54,7 @@ from voxpage.extract.pdf_structure import (
     reorder_continuations,
     word_stats,
 )
+from voxpage.extract.pdf_tabular import LooseItem, find_loose, loose_pages
 from voxpage.extract.pdf_text import clean_text
 from voxpage.lang import detect_lang
 from voxpage.progress import Cancelled, CancelToken, ProgressCb
@@ -429,10 +430,13 @@ class PdfExtractor:
             stream.extend(reading_order(p, frags, regions, body))
 
         stream = reorder_continuations(stream, body)
+        stream = find_loose(stream, render_line)
         rendered: list[str] = []
         for it in stream:
             if isinstance(it, Line):
                 rendered.append(render_line(it)[0])
+            elif isinstance(it, LooseItem):
+                rendered.extend(render_line(ln)[0] for ln in it.lines)
             elif isinstance(it, TableItem):
                 for row in it.rows:
                     for cell in row:
@@ -447,6 +451,8 @@ class PdfExtractor:
             if isinstance(it, Line):
                 text, calls = render_line(it)
                 builder.add(it, text, calls)
+            elif isinstance(it, LooseItem):
+                builder.loose(it)
             elif isinstance(it, TableItem):
                 builder.table(it)
         blocks = builder.finish()
@@ -487,6 +493,11 @@ class PdfExtractor:
                     "document scanné. La reconnaissance de caractères (OCR) est nécessaire pour le lire."
                 )
             raise ExtractError(f"« {path.name} » ne contient aucun texte.")
+
+        loose = loose_pages([b for ch in chapters for b in ch.blocks])
+        if loose:
+            label = _pages_label([p - 1 for p in loose]).capitalize()
+            warnings.append(f"{label} : tableaux ou graphiques lus sans structure.")
 
         sample = " ".join(
             b.text for ch in chapters for b in ch.blocks if b.kind in ("paragraph", "list_item")

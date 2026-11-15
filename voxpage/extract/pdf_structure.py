@@ -174,6 +174,7 @@ class _Block:
     level: int = 0
     text: str = ""
     marker: str = ""
+    loose: bool = False
 
     @property
     def page(self) -> int:
@@ -278,6 +279,21 @@ class Builder:
         b = _Block("table", lines=all_lines, calls=calls)
         b.text = "\n".join(r for r in rows if r.strip("; "))
         self.blocks.append(b)
+
+    def loose(self, item) -> None:
+        """Zone tabulaire ou graphique sans structure : un bloc `table`, chaque ligne lue telle quelle."""
+        self.flush()
+        self.prev = None
+        calls: list[tuple[int, str]] = []
+        rows = []
+        for ln in item.lines:
+            t, c = render_line(ln)
+            calls.extend((ln.page, x) for x in c)
+            rows.append(clean_text(t))
+        b = _Block("table", lines=list(item.lines), calls=calls, loose=True)
+        b.text = "\n".join(r for r in rows if r.strip())
+        if b.text:
+            self.blocks.append(b)
 
     def start(self, kind: str, line: Line, text: str, calls: list[str]) -> None:
         self.flush()
@@ -623,7 +639,7 @@ def heading_splits(blocks: list[_Block]) -> list[tuple[int, str]]:
 
 
 def to_block(b: _Block) -> Block:
-    return Block(b.kind, b.text, b.level if b.kind == "heading" else 0, b.page + 1)
+    return Block(b.kind, b.text, b.level if b.kind == "heading" else 0, b.page + 1, b.loose)
 
 
 def make_chapters(
