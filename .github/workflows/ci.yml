@@ -17,3 +17,8 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: ruff check .
       - run: pytest -q
+      - name: Auto-test de l'interface graphique
+        if: runner.os == 'Windows'
+        run: |
+          pip install -e ".[gui]"
+          python -m voxpage --gui-self-test
