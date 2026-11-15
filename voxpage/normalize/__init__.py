@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from voxpage.document import Block, Document
 
 from . import text as _text
+from .lexicon import Lexicon
 from .sentences import MAX_CHARS, split_long, split_sentences
 
 
@@ -71,17 +72,23 @@ def _lang(doc: Document) -> str:
     return "en" if (doc.lang or "fr").lower().startswith("en") else "fr"
 
 
-def _pieces(text: str, lang: str) -> list[tuple[str, bool]]:
-    """Texte brut d'une ligne/paragraphe -> [(morceau à dire, fin_de_phrase)]."""
+def _pieces(text: str, lang: str, lexicon: Lexicon | None = None) -> list[tuple[str, bool]]:
+    """Texte brut d'une ligne/paragraphe -> [(morceau à dire, fin_de_phrase)]. Les écrits du dictionnaire de
+    prononciation sont déjà des repères dans `text` ; ils sont rendus une fois la phrase réécrite."""
     out: list[tuple[str, bool]] = []
     for sentence in split_sentences(text, lang):
-        chunks = [c for c in split_long(_text.speak(sentence, lang), MAX_CHARS) if c.strip()]
+        spoken = _text.speak(sentence, lang)
+        if lexicon:
+            spoken = lexicon.restore(spoken)
+        chunks = [c for c in split_long(spoken, MAX_CHARS) if c.strip()]
         for i, chunk in enumerate(chunks):
             out.append((chunk, i == len(chunks) - 1))
     return out
 
 
-def _block_segments(block: Block, lang: str, opts: NormalizeOptions) -> list[Segment]:
+def _block_segments(
+    block: Block, lang: str, opts: NormalizeOptions, lexicon: Lexicon | None = None
+) -> list[Segment]:
     raw = block.text or ""
     items = [raw] if block.kind != "paragraph" else _text.split_bullet_lines(raw)
     sentence_pause = opts.sentence_pause_ms
@@ -90,9 +97,11 @@ def _block_segments(block: Block, lang: str, opts: NormalizeOptions) -> list[Seg
 
     def add(text: str, kind: str, row_end_pause: int) -> None:
         text = _text.clean_block(text, kind)
+        if lexicon:
+            text = lexicon.apply(text)
         if kind in ("heading", "paragraph", "list_item", "caption", "footnote", "table"):
             text = _text.decaps(text, lang)
-        got = _pieces(text, lang)
+        got = _pieces(text, lang, lexicon)
         for chunk, end in got:
             pieces.append((chunk, sentence_pause if end else min(_CHUNK_PAUSE_MS, sentence_pause)))
         if got:
@@ -136,14 +145,20 @@ def same_title(a: str, b: str) -> bool:
     return bool(key(a)) and key(a) == key(b)
 
 
-def spoken_title(title: str, lang: str, options: NormalizeOptions | None = None) -> list[str]:
+def spoken_title(
+    title: str, lang: str, options: NormalizeOptions | None = None, lexicon: Lexicon | None = None
+) -> list[str]:
     """Segments dits pour annoncer un titre de chapitre."""
     title = re.sub(r"\s+", " ", title or "").strip()
     lang = "en" if (lang or "fr").lower().startswith("en") else "fr"
-    return [s.text for s in _block_segments(Block("heading", title), lang, options or NormalizeOptions())]
+    blocks = _block_segments(Block("heading", title), lang, options or NormalizeOptions(), lexicon)
+    return [s.text for s in blocks]
 
 
-def normalize(doc: Document, options: NormalizeOptions) -> list[SpeechChapter]:
+def normalize(
+    doc: Document, options: NormalizeOptions, lexicon: Lexicon | None = None
+) -> list[SpeechChapter]:
+    """`lexicon` : dictionnaire de prononciation déjà chargé pour la langue du document (aucun par défaut)."""
     lang = _lang(doc)
     result: list[SpeechChapter] = []
     for chapter in doc.chapters:
@@ -158,10 +173,10 @@ def normalize(doc: Document, options: NormalizeOptions) -> list[SpeechChapter]:
             leading.append(b)
         duplicate = any(same_title(title, b.text) for b in leading)
         if options.announce_headings and title and not duplicate:
-            segments += _block_segments(Block("heading", title), lang, options)
+            segments += _block_segments(Block("heading", title), lang, options, lexicon)
         for block in blocks:
             if block.kind == "heading" and not options.announce_headings:
                 continue
-            segments += _block_segments(block, lang, options)
+            segments += _block_segments(block, lang, options, lexicon)
         result.append(SpeechChapter(title=title, segments=segments))
     return result

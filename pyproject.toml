@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "voxpage"
-version = "0.1.0"
+version = "0.2.0"
 license = "GPL-3.0-or-later"
 description = "Convertit un PDF en fichier audio pour les personnes malvoyantes"
 readme = "README.md"
@@ -34,6 +34,9 @@ voxpage = "voxpage.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["voxpage*"]
+
+[tool.setuptools.package-data]
+"voxpage.normalize" = ["data/*.txt"]
 
 [tool.ruff]
 line-length = 110

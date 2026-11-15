@@ -8,6 +8,7 @@ from voxpage.document import Document
 from voxpage.extract import UnsupportedFormat, extractor_for
 from voxpage.extract.base import ExtractError
 from voxpage.normalize import SpeechChapter, normalize, spoken_title
+from voxpage.normalize.lexicon import LexiconSource, LoadedLexicon
 from voxpage.normalize.text import has_content
 from voxpage.progress import Cancelled, CancelToken, ProgressCb
 from voxpage.settings import Settings
@@ -76,8 +77,14 @@ def _read_document(
     return doc
 
 
-def _speech(doc: Document, settings: Settings) -> list[SpeechChapter]:
-    chapters = normalize(doc, settings.normalize)
+def _load_lexicon(doc: Document, source: LexiconSource | None) -> LoadedLexicon:
+    """Dictionnaire de prononciation de la langue du document (livré + utilisateur, ou celui demandé)."""
+    lang = "en" if (doc.lang or "fr").lower().startswith("en") else "fr"
+    return (source or LexiconSource()).load(lang)
+
+
+def _speech(doc: Document, settings: Settings, lexicon: LoadedLexicon) -> list[SpeechChapter]:
+    chapters = normalize(doc, settings.normalize, lexicon.lexicon)
     if not any(seg.text.strip() for ch in chapters for seg in ch.segments):
         raise ConversionError("Ce document ne contient aucun texte lisible.")
     return chapters
@@ -138,10 +145,13 @@ def convert(
     progress: ProgressCb | None = None,
     cancel: CancelToken | None = None,
     engine: TtsEngine | None = None,
+    pronunciations: LexiconSource | None = None,
 ) -> ConvertResult:
+    """`pronunciations` : origine du dictionnaire de prononciation (défaut : livré + utilisateur)."""
     report = _Progress(progress)
     doc = _read_document(input, settings, report, EXTRACT_SHARE, cancel)
-    chapters = _speech(doc, settings)
+    lexicon = _load_lexicon(doc, pronunciations)
+    chapters = _speech(doc, settings, lexicon)
     if cancel:
         cancel.raise_if_cancelled()
     if engine is None:
@@ -149,7 +159,7 @@ def convert(
 
         engine = get_engine()
     voice, warnings = _choose_voice(engine, settings, doc)
-    warnings = [*doc.warnings, *warnings]
+    warnings = [*doc.warnings, *lexicon.warnings(), *warnings]
 
     total_chars = sum(len(s.text) + 1 for ch in chapters for s in ch.segments) or 1
     done_chars = 0
@@ -200,6 +210,7 @@ def extract_text(
     progress: ProgressCb | None = None,
     cancel: CancelToken | None = None,
     warnings: list[str] | None = None,
+    pronunciations: LexiconSource | None = None,
 ) -> str:
     """Texte tel qu'il sera dit : un segment par ligne, chapitres séparés par leur titre.
 
@@ -208,15 +219,17 @@ def extract_text(
     ajoutés à `warnings` si on en fournit une liste."""
     report = _Progress(progress)
     doc = _read_document(input, settings, report, 0.9, cancel)
+    lexicon = _load_lexicon(doc, pronunciations)
     if warnings is not None:
         warnings.extend(doc.warnings)
+        warnings.extend(lexicon.warnings())
     report("Préparation du texte", 0.95)
-    chapters = _speech(doc, settings)
+    chapters = _speech(doc, settings, lexicon)
     parts = []
     for chapter in chapters:
         lines = [s.text for s in chapter.segments if s.text.strip()]
         if chapter.title:
-            said = spoken_title(chapter.title, doc.lang, settings.normalize)
+            said = spoken_title(chapter.title, doc.lang, settings.normalize, lexicon.lexicon)
             if said and lines[: len(said)] == said:
                 del lines[: len(said)]  # le titre est dit en tête de chapitre : la ligne « == … == » le porte
             lines.insert(0, f"== {chapter.title} ==")

@@ -11,3 +11,4 @@ voices/*/
 settings.json
 .cache/
 /ocr/
+/prononciations.txt

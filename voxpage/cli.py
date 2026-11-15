@@ -8,6 +8,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from voxpage import __version__, settings
+from voxpage.normalize.lexicon import LexiconSource
 from voxpage.pipeline import ConversionError, convert, extract_text
 from voxpage.progress import Cancelled, CancelToken
 
@@ -61,6 +62,16 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--texte", metavar="FICHIER.txt", help="exporte le texte qui serait lu, au lieu de l'audio"
     )
+    p.add_argument(
+        "--prononciations",
+        metavar="FICHIER",
+        help="dictionnaire de prononciation à utiliser à la place de celui de l'utilisateur (écrit = dit)",
+    )
+    p.add_argument(
+        "--sans-prononciations",
+        action="store_true",
+        help="ignore les dictionnaires de prononciation (livré et utilisateur)",
+    )
     p.add_argument("--liste-voix", action="store_true", help="affiche les voix disponibles et quitte")
     p.add_argument("--diagnostic", action="store_true", help="vérifie l'installation et quitte")
     p.add_argument("--silencieux", action="store_true", help="n'affiche pas la progression")
@@ -99,6 +110,19 @@ def _apply_options(s: settings.Settings, a: argparse.Namespace) -> None:
         s.extract.ocr = {"auto": "auto", "jamais": "never", "toujours": "always"}[a.ocr]
     if a.sans_titres:
         s.normalize.announce_headings = False
+
+
+def _lexicon_source(a: argparse.Namespace) -> LexiconSource:
+    if a.sans_prononciations:
+        if a.prononciations is not None:
+            raise _ArgError("--prononciations et --sans-prononciations s'excluent.")
+        return LexiconSource(shipped=False, user=False)
+    if a.prononciations is None:
+        return LexiconSource()
+    path = Path(a.prononciations)
+    if not path.is_file():
+        raise _ArgError(f"le fichier de prononciations « {path} » est introuvable.")
+    return LexiconSource(user_path=path)
 
 
 def default_output(input: Path, s: settings.Settings) -> Path:
@@ -168,11 +192,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     s = copy.deepcopy(settings.load())
     try:
         _apply_options(s, args)
+        source = _lexicon_source(args)
     except _ArgError as exc:
         _err(f"voxpage : erreur : {exc}\n")
         return EXIT_USAGE
 
-    source = Path(args.entree)
+    source_file = Path(args.entree)
     reporter = None if args.silencieux else _Reporter()
     cancel = CancelToken()
     previous = None
@@ -183,7 +208,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         if args.texte is not None:
             notes: list[str] = []
-            text = extract_text(source, s, reporter, cancel, notes)
+            text = extract_text(source_file, s, reporter, cancel, notes, pronunciations=source)
             target = Path(args.texte)
             try:
                 target.write_text(text, encoding="utf-8")
@@ -196,8 +221,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             if not args.silencieux:
                 _err(f"Texte enregistré : {target}\n")
             return EXIT_OK
-        output = Path(args.sortie) if args.sortie else default_output(source, s)
-        result = convert(source, output, s, reporter, cancel)
+        output = Path(args.sortie) if args.sortie else default_output(source_file, s)
+        result = convert(source_file, output, s, reporter, cancel, pronunciations=source)
     except Cancelled:
         if reporter:
             reporter.finish()

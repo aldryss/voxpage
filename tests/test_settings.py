@@ -3,6 +3,7 @@ import sys
 
 import pytest
 
+import voxpage
 from voxpage import settings
 
 
@@ -89,4 +90,4 @@ def test_cli_version(capsys):
     from voxpage.cli import main
 
     assert main(["--version"]) == 0
-    assert "0.1.0" in capsys.readouterr().out
+    assert voxpage.__version__ in capsys.readouterr().out

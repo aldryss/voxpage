@@ -13,6 +13,7 @@ from voxpage.extract.base import ExtractOptions
 from voxpage.normalize import NormalizeOptions
 
 FILENAME = "settings.json"
+PRONUNCIATIONS_FILENAME = "prononciations.txt"  # dictionnaire de l'utilisateur, voir normalize/lexicon.py
 
 
 @dataclass
@@ -54,6 +55,24 @@ def _read_path() -> Path | None:
         if candidate.is_file():
             return candidate
     return None
+
+
+def pronunciations_read_path() -> Path | None:
+    """Dictionnaire de prononciation de l'utilisateur, s'il existe (même recherche que `settings.json`)."""
+    for directory in (app_dir(), fallback_dir()):
+        candidate = directory / PRONUNCIATIONS_FILENAME
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def pronunciations_path() -> Path:
+    """Fichier du dictionnaire de l'utilisateur : l'existant, sinon à côté de l'exécutable (ou repli)."""
+    found = pronunciations_read_path()
+    if found is not None:
+        return found
+    directory = app_dir()
+    return (directory if _is_writable(directory) else fallback_dir()) / PRONUNCIATIONS_FILENAME
 
 
 def _build(cls: type, data: Any) -> Any:

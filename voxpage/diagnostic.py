@@ -66,6 +66,23 @@ def _checks() -> list[tuple[str, Callable[[], str]]]:
             ("num2words", _num2words), ("lameenc", _lameenc), ("ocr", _ocr)]
 
 
+def _pronunciations() -> list[str]:
+    """Dictionnaire de prononciation : chemin, entrées de l'utilisateur et livrées, lignes ignorées."""
+    from voxpage.normalize import lexicon
+
+    path = settings.pronunciations_path()
+    entries, problems = lexicon.read_entries(path) if path.is_file() else ([], [])
+    state = "" if path.is_file() else " (absent : créé au premier ajout)"
+    lines = [
+        f"prononciations={path}{state}",
+        f"prononciations_utilisateur={len(entries)} entrée(s)",
+        "prononciations_livrees="
+        + ", ".join(f"{lang} {len(lexicon.shipped_entries(lang))}" for lang in lexicon.LANGUAGES),
+    ]
+    lines += [f"avertissement prononciations : {p}" for p in problems]
+    return lines
+
+
 def run() -> int:
     ok = True
     lines = [
@@ -80,6 +97,7 @@ def run() -> int:
     except OSError as exc:
         ok = False
         lines.append(f"ÉCHEC réglages : {exc}")
+    lines += _pronunciations()
     for name, check in _checks():
         try:
             lines.append(f"ok {name} : {check()}")
