@@ -189,6 +189,8 @@ tierces, généré par `packaging/make_notice.py`). `settings.json` est écrit �
 Version unique : `pyproject.toml` (= `voxpage.__version__`, test à l'appui) ; le tag `vX.Y.Z` doit
 correspondre. Le workflow teste l'exécutable construit (`packaging/test_release.py`) dans un dossier
 décompressé hors du dépôt, au chemin avec espace et accent, avec un PATH réduit à Windows.
+Sous Windows, eSpeak NG et onnxruntime lisent les chemins en ANSI : un chemin accentué est converti en nom
+court 8.3 (ou copie temporaire) avant le chargement d'une voix (`ascii_voice_folder`).
 `voxpage --diagnostic` vérifie les bibliothèques embarquées et l'écriture des réglages.
 Exécutable non signé : avertissement SmartScreen, documenté dans `LISEZMOI.txt`.
 Procédure : `docs/release.md`.
