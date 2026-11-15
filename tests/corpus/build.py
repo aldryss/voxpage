@@ -1054,6 +1054,135 @@ def build_anglais():
 # 12. Cas d'erreur et page scannée
 
 
+# ---------------------------------------------------------------------------------------------------------
+# Pages scannées : texte rendu en image (pdfium), légèrement dégradé, puis collé en pleine page
+
+SCAN_PAGE = {
+    "title": "Compte rendu du conseil",
+    "paragraphs": [
+        "Le conseil municipal s’est réuni le 14 mars 2024 à l’hôtel de ville. Il a voté à l’unanimité la "
+        "rénovation de l’école Jules-Ferry, pour un montant de 1 250 000 €.",
+        "« Les enfants pourront enfin travailler dans un bâtiment chauffé et accessible à tous », a déclaré "
+        "la maire, Hélène Garnier.",
+    ],
+}
+# Document de trois pages scannées avec en-tête courant et numéros de page (à retirer à la lecture)
+SCAN_RUNNING = [
+    [
+        "La bibliothèque municipale ouvrira ses portes le samedi matin à partir du mois de septembre, afin "
+        "de répondre à la demande des familles qui travaillent en semaine.",
+        "Le budget de fonctionnement augmente de 4,5 % ; il couvre le recrutement d’un second bibliothécaire "
+        "et l’achat de 800 ouvrages jeunesse.",
+    ],
+    [
+        "Le service des sports a présenté son bilan : 312 enfants inscrits à l’école de natation, contre 280 "
+        "l’an dernier, et deux nouveaux créneaux le mercredi après-midi.",
+        "La piscine fermera du 1er au 15 juillet pour des travaux de réfection du carrelage et de la "
+        "filtration.",
+    ],
+    [
+        "Enfin, l’assemblée a félicité l’équipe technique pour la rapidité de la remise en état de la rue "
+        "des Tilleuls après les inondations d’octobre.",
+        "La séance a été levée à vingt-deux heures quinze.",
+    ],
+]
+
+
+def draw_scan_page(c, spec, header=None, footer=None):
+    c.setFont(B, 16)
+    y = H - 110
+    c.drawString(72, y, spec["title"])
+    y -= 34
+    c.setFont(R, 11)
+    for para in spec["paragraphs"]:
+        for line, _last in wrap(para, R, 11, lambda i: W - 144):
+            c.drawString(72, y, line)
+            y -= 15
+        y -= 8
+
+
+def draw_running_page(c, paragraphs, number):
+    c.setFont(R, 9)
+    c.drawString(72, H - 50, "Ville de Mortagne — Conseil municipal 2024")
+    c.setFont(R, 11)
+    y = H - 120
+    for para in paragraphs:
+        for line, _last in wrap(para, R, 11, lambda i: W - 144):
+            c.drawString(72, y, line)
+            y -= 15
+        y -= 8
+    c.setFont(R, 10)
+    c.drawCentredString(W / 2, 40, f"- {number} -")
+
+
+def scan_image(draw, dpi=150, tilt=0.0, blur=0.0, quality=60):
+    """Rend ce que dessine `draw(canvas)` sur une page A4, puis le dégrade comme un scanner."""
+    import pypdfium2 as pdfium
+    from PIL import ImageFilter
+
+    buf = io.BytesIO()
+    c = canvas.Canvas(buf, pagesize=A4, invariant=1)
+    draw(c)
+    c.showPage()
+    c.save()
+    pdf = pdfium.PdfDocument(buf.getvalue())
+    img = pdf[0].render(scale=dpi / 72, grayscale=True).to_pil().convert("L")
+    pdf.close()
+    if tilt:
+        img = img.rotate(tilt, resample=Image.BICUBIC, fillcolor=255)
+    if blur:
+        img = img.filter(ImageFilter.GaussianBlur(blur))
+    out = io.BytesIO()
+    img.save(out, format="JPEG", quality=quality)
+    out.seek(0)
+    return out
+
+
+def draw_scanned(c, jpeg):
+    c.drawImage(ImageReader(jpeg), 0, 0, W, H)
+
+
+def build_ocr():
+    """Pages scannées pour les tests OCR : un document à en-têtes courants et trois pages du banc d'essai
+    (tools/ocr_bench.py), dégradées ; la vérité terrain est dans ocr.truth.json."""
+    import sys
+
+    sys.path.insert(0, str(HERE.parent.parent / "tools"))
+    import ocr_bench
+    import pypdfium2 as pdfium
+    from ocr_bench_texts import TEXTS
+
+    c = new_canvas("ocr-entetes.pdf", "Procès-verbal", None)
+    for n, paras in enumerate(SCAN_RUNNING, start=1):
+        draw_scanned(c, scan_image(lambda cv, p=paras, k=n: draw_running_page(cv, p, k), tilt=0.5))
+        c.showPage()
+    c.save()
+    truth = {"ocr-entetes": "\n\n".join(p for paras in SCAN_RUNNING for p in paras)}
+
+    wanted = {"roman-1": "mauvais-150", "journal-1": "propre-150", "colonnes-1": "incline-150"}
+    for spec in TEXTS:
+        if spec["id"] not in wanted:
+            continue
+        tmp = HERE / f"{spec['id']}.tmp.pdf"
+        text = ocr_bench.render_text_pdf(spec, tmp)
+        pdf = pdfium.PdfDocument(str(tmp))
+        base = pdf[0].render(scale=300 / 72, grayscale=True).to_pil().convert("L")
+        pdf.close()
+        tmp.unlink()
+        img = ocr_bench.degrade(base, wanted[spec["id"]], seed=7)
+        jpeg = io.BytesIO()
+        img.save(jpeg, format="JPEG", quality=60)
+        jpeg.seek(0)
+        name = f"ocr-{spec['id'].split('-')[0]}"
+        c = new_canvas(f"{name}.pdf", spec.get("title") or None, None)
+        draw_scanned(c, jpeg)
+        c.showPage()
+        c.save()
+        truth[name] = text
+    out = json.dumps(truth, ensure_ascii=False, indent=1) + "\n"
+    (HERE / "ocr.truth.json").write_text(out, encoding="utf-8")
+
+
 def build_errors():
     from reportlab.lib.pdfencrypt import StandardEncryption
 
@@ -1074,20 +1203,12 @@ def build_errors():
     c.save()
     write_expected("vide", [{"options": {}, "error": "ne contient aucun texte"}])
 
-    # page 1 : texte ; page 2 : image seule (page scannée)
+    # page 1 : texte ; page 2 : image seule (page scannée, texte réel lisible par l'OCR)
     c = new_canvas("scan.pdf", "Document mixte", None)
     c.setFont(R, 11)
     c.drawString(72, H - 90, "Cette première page contient du texte natif.")
     c.showPage()
-    img = Image.new("L", (200, 280), 255)
-    for yy in range(20, 260, 12):
-        for xx in range(20, 180):
-            if (xx // 7 + yy) % 5:
-                img.putpixel((xx, yy), 0)
-    buf = io.BytesIO()
-    img.save(buf, format="PNG")
-    buf.seek(0)
-    c.drawImage(ImageReader(buf), 40, 40, W - 80, H - 80)
+    draw_scanned(c, scan_image(lambda cv: draw_scan_page(cv, SCAN_PAGE), dpi=200, tilt=0.8, blur=0.5))
     c.showPage()
     c.save()
     warn = (
@@ -1126,6 +1247,7 @@ def main() -> None:
     build_ligatures()
     build_anglais()
     build_errors()
+    build_ocr()
     print("Corpus généré dans", HERE)
 
 

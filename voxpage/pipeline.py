@@ -199,13 +199,17 @@ def extract_text(
     settings: Settings,
     progress: ProgressCb | None = None,
     cancel: CancelToken | None = None,
+    warnings: list[str] | None = None,
 ) -> str:
     """Texte tel qu'il sera dit : un segment par ligne, chapitres séparés par leur titre.
 
     La ligne « == Titre == » tient lieu de l'annonce du titre quand celui-ci est dit en tête de chapitre
-    (il n'est pas répété sur la ligne suivante)."""
+    (il n'est pas répété sur la ligne suivante). Les avertissements de lecture (OCR, pages ignorées…) sont
+    ajoutés à `warnings` si on en fournit une liste."""
     report = _Progress(progress)
     doc = _read_document(input, settings, report, 0.9, cancel)
+    if warnings is not None:
+        warnings.extend(doc.warnings)
     report("Préparation du texte", 0.95)
     chapters = _speech(doc, settings)
     parts = []

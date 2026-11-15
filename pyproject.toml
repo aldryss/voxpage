@@ -18,6 +18,9 @@ dependencies = [
     "mutagen",
     "num2words",
     "Pillow",
+    # OCR des pages scannées (docs/ocr.md) ; modèles livrés à part dans ocr/ (tools/fetch_ocr.py)
+    "rapidocr>=3.10,<4",
+    "onnxruntime",
 ]
 
 [project.optional-dependencies]

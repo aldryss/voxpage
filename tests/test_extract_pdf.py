@@ -40,7 +40,11 @@ def extract(name: str, **options):
 
 
 @pytest.mark.parametrize(("name", "case"), list(cases()))
-def test_corpus(name, case):
+def test_corpus(name, case, monkeypatch):
+    import voxpage.extract.pdf as pdf
+
+    # texte natif seul : l'OCR est testé dans test_ocr.py
+    monkeypatch.setattr(pdf, "_ocr_engine", lambda: None)
     if "error" in case:
         with pytest.raises(ExtractError) as err:
             extract(name, **case["options"])
@@ -107,26 +111,6 @@ def test_fichier_introuvable(tmp_path):
 def test_ocr_never_signale_sans_avertir_d_ocr():
     doc = extract("scan", ocr="never")
     assert doc.warnings == ["Page 2 : aucun texte exploitable (page scannée ?)."]
-
-
-def test_ocr_branche(monkeypatch):
-    import voxpage.extract.pdf as pdf
-
-    calls = []
-
-    def fake_ocr(path, index, lang):
-        calls.append(index)
-        return "Texte reconnu\nsur deux lignes.\n\nSecond paragraphe."
-
-    monkeypatch.setattr(pdf, "_ocr_engine", lambda: fake_ocr)
-    doc = extract("scan")
-    assert calls == [1]
-    assert [(b.text, b.page) for b in doc.chapters[0].blocks] == [
-        ("Cette première page contient du texte natif.", 1),
-        ("Texte reconnu sur deux lignes.", 2),
-        ("Second paragraphe.", 2),
-    ]
-    assert doc.warnings == ["Page 2 : texte reconnu par OCR, à vérifier."]
 
 
 # ---------------------------------------------------------------------------------------------------------

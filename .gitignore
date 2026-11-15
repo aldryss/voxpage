@@ -10,3 +10,4 @@ voices/*/
 !voices/README.md
 settings.json
 .cache/
+/ocr/

@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from pdfminer.converter import PDFPageAggregator
 from pdfminer.layout import LTChar, LTContainer, LTCurve, LTFigure, LTImage, LTLine, LTRect
 
-from voxpage.extract.pdf_text import clean_char, is_unknown_glyph
+from voxpage.extract.pdf_text import clean_char, count_tokens, is_unknown_glyph
 
 _BOLD = re.compile(r"bold|black|heavy|semibold|demibold|demi|extrabold|ultrabold|[-,]bd\b", re.IGNORECASE)
 _ITALIC = re.compile(r"italic|oblique|[-,]it\b", re.IGNORECASE)
@@ -152,6 +152,8 @@ class PageData:
     n_alnum: int = 0
     n_unknown: int = 0
     n_rotated: int = 0
+    n_words: int = 0  # mots du texte natif et, parmi eux, ceux qui relèvent du charabia (count_tokens)
+    n_junk: int = 0
     footnotes: list[Line] = field(default_factory=list)
 
 
@@ -276,6 +278,7 @@ def read_page(ltpage, index: int) -> PageData:
     page.n_rotated = stats["rotated"]
     vsegs = [s for s in segs if not s.horizontal]
     page.frags = build_frags(_drop_microtext(chars), vsegs, index)
+    page.n_words, page.n_junk = count_tokens(" ".join(f.text for f in page.frags))
     return page
 
 

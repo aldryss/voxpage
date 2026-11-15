@@ -54,6 +54,36 @@ _ELISION = re.compile(r"^(?:[a-zà-ÿ]{1,3}['’])", re.IGNORECASE)
 _WORD = re.compile(r"[^\W\d_]+(?:[-'’][^\W\d_]+)*")
 
 
+_VOWEL_LETTER = re.compile(r"[aeiouyàâäéèêëîïôöùûüœ]", re.IGNORECASE)
+_NUMBER = re.compile(r"^[\d.,:;/%€$£°+\-–—()]+$")
+_LEADER = re.compile(r"^(.)\1{2,}$")  # points de conduite, tirets, traits : neutres
+_MOJIBAKE = re.compile(r"Ã[\x80-\xbf]|â€[\x80-\xbf™œ]|Â[\xa0-\xbf]|\ufffd")
+
+
+def count_tokens(text: str) -> tuple[int, int]:
+    """(nombre de mots, dont « charabia ») d'un texte extrait : sert à reconnaître une couche de texte
+    incohérente (OCR d'origine raté, police mal encodée). Un mot est plausible s'il porte au moins une voyelle
+    (ou est un nombre, un sigle en majuscules, des points de conduite) ; le reste (lettres isolées,
+    ponctuation seule, suites de consonnes, symboles) est du charabia. Les séquences d'encodage cassé
+    (« Ã© », « â€™ », « � ») comptent chacune pour un mot de charabia."""
+    total = junk = 0
+    junk += len(_MOJIBAKE.findall(text))
+    total += junk
+    for tok in text.split():
+        if _LEADER.match(tok) or _NUMBER.match(tok):
+            continue
+        total += 1
+        letters = "".join(c for c in tok if c.isalpha())
+        if len(letters) >= 2 and letters.isupper():
+            continue  # sigle : « SNCF », « RATP »
+        if len(letters) >= 2 and _VOWEL_LETTER.search(letters):
+            continue
+        if len(letters) == 1 and (letters.lower() in "aày" and len(tok) <= 2 or tok[1:2] in ("'", "’")):
+            continue  # « a », « à », « y », « l' », « d' »
+        junk += 1
+    return total, junk
+
+
 def is_unknown_glyph(text: str) -> bool:
     """Glyphe sans correspondance Unicode (pdfminer renvoie « (cid:N) »)."""
     return bool(_CID.match(text))

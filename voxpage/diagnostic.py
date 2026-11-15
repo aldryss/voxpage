@@ -51,9 +51,19 @@ def _sherpa() -> str:
     return f"sherpa-onnx {sherpa_onnx.__version__}"
 
 
+def _ocr() -> str:
+    from voxpage.extract import ocr
+
+    if not ocr.available():
+        if getattr(sys, "frozen", False):
+            raise RuntimeError(f"moteur ou modèles absents ({ocr.models_dir()})")
+        return "non disponible (modèles absents : python tools/fetch_ocr.py)"
+    return f"lu « {ocr.self_test()} », modèles dans {ocr.models_dir()}"
+
+
 def _checks() -> list[tuple[str, Callable[[], str]]]:
     return [("sherpa-onnx", _sherpa), ("pypdfium2", _pdfium), ("pdfminer", _pdfminer),
-            ("num2words", _num2words), ("lameenc", _lameenc)]
+            ("num2words", _num2words), ("lameenc", _lameenc), ("ocr", _ocr)]
 
 
 def run() -> int:

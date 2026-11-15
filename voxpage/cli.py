@@ -182,7 +182,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         pass
     try:
         if args.texte is not None:
-            text = extract_text(source, s, reporter, cancel)
+            notes: list[str] = []
+            text = extract_text(source, s, reporter, cancel, notes)
             target = Path(args.texte)
             try:
                 target.write_text(text, encoding="utf-8")
@@ -190,6 +191,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 raise ConversionError(f"Impossible d'écrire « {target} » : {exc.strerror or exc}.") from exc
             if reporter:
                 reporter.finish()
+            for w in notes:
+                _err(f"Avertissement : {w}\n")
             if not args.silencieux:
                 _err(f"Texte enregistré : {target}\n")
             return EXIT_OK
