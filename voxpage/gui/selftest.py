@@ -141,7 +141,8 @@ def _check_pronunciations(win, app, tmp: Path) -> None:
         dlg._on_add(None)
         _check(errors and "existe déjà" in errors[-1], "doublon non signalé")
         # Modification
-        dlg.list.Select(1)
+        edf_row = next(r for r in dlg.model.rows() if r.written == "EDF")
+        dlg.list.Select(dlg._lines.index(edf_row.line))
         _check(dlg.selected_line() is not None, "sélection absente")
         dlg._on_select(None)
         _check(dlg.written_text.GetValue() == "EDF", "champ « Écrit » non rempli par la sélection")
