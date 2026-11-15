@@ -49,6 +49,7 @@ from voxpage.extract.pdf_structure import (
     heading_splits,
     make_chapters,
     render_line,
+    reorder_continuations,
     word_stats,
 )
 from voxpage.extract.pdf_text import clean_text
@@ -59,7 +60,7 @@ OcrFn = Callable[[Path, int, str | None], str]
 
 _JUNK_TITLE = re.compile(
     r"^(?:untitled|sans titre|document\d*|microsoft (?:word|powerpoint) - .*"
-    r"|.*\.(?:docx?|odt|rtf|pdf|indd|tex|dvi|qxd|ps))$",
+    r"|.*\.(?:docx?|odt|rtf|pdf|indd|tex|dvi|qxd|ps)|.*\bcop(?:ie|y))$",
     re.IGNORECASE,
 )
 
@@ -344,6 +345,7 @@ class PdfExtractor:
             regions = detect_regions(p, frags, body)
             stream.extend(reading_order(p, frags, regions, body))
 
+        stream = reorder_continuations(stream, body)
         rendered: list[str] = []
         for it in stream:
             if isinstance(it, Line):

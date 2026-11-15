@@ -169,6 +169,8 @@ def test_cesure_tranchee_par_le_document():
     [
         ("biblio\u00ad", "thèque", "bibliothèque"),
         ("de 1914-", "1918", "de 1914-1918"),
+        ("l’Île-", "de-France", "l’Île-de-France"),
+        ("un vis-", "à-vis", "un vis-à-vis"),
         ("neuf heures —", "et ferme", "neuf heures — et ferme"),
         ("voir https://exemple.fr/", "page", "voir https://exemple.fr/page"),
         ("fin de ligne", "suite", "fin de ligne suite"),

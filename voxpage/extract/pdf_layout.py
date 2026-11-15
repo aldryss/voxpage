@@ -3,13 +3,14 @@
 Coordonnées « de haut en bas » : `top` < `bottom`, l'origine est le coin supérieur gauche de la page.
 """
 
+import functools
 import re
 import statistics
 from collections import Counter
 from dataclasses import dataclass, field
 
 from pdfminer.converter import PDFPageAggregator
-from pdfminer.layout import LTChar, LTContainer, LTCurve, LTImage, LTLine, LTRect
+from pdfminer.layout import LTChar, LTContainer, LTCurve, LTFigure, LTImage, LTLine, LTRect
 
 from voxpage.extract.pdf_text import clean_char, is_unknown_glyph
 
@@ -19,6 +20,12 @@ LIST_MARKER = re.compile(
     r"^(?:[•◦▪▫‣⁃●○■□►▶➢➤✓✔∙·*–—-]|\(?\d{1,3}[.)]|\(?[a-zA-Z][.)]|\(?[ivxlcIVXLC]{1,5}[.)])$"
 )
 _LIST_GLYPHS = "•◦▪▫‣⁃●○■□►▶➢➤✓✔∙·"
+
+
+@functools.lru_cache(maxsize=256)
+def font_style(fontname: str) -> tuple[bool, bool]:
+    """(gras, italique) d'après le nom de la police."""
+    return bool(_BOLD.search(fontname)), bool(_ITALIC.search(fontname))
 
 
 @dataclass
@@ -33,10 +40,10 @@ class Char:
     bold: bool
     italic: bool
     order: int
+    is_space: bool = False
 
-    @property
-    def is_space(self) -> bool:
-        return self.text.isspace()
+    def __post_init__(self) -> None:
+        self.is_space = self.text.isspace()
 
 
 @dataclass
@@ -157,11 +164,18 @@ class Aggregator(PDFPageAggregator):
     """Agrégateur pdfminer qui note la ligne de base réelle de chaque caractère (décalage vertical
     `Ts` compris) : c'est ce qui permet de reconnaître les exposants (appels de note, « XIXe »)."""
 
+    _render_mode = 0
+
+    def render_string(self, textstate, seq, ncs, graphicstate):  # noqa: D102
+        self._render_mode = getattr(textstate, "render", 0) or 0
+        super().render_string(textstate, seq, ncs, graphicstate)
+
     def render_char(self, matrix, font, fontsize, scaling, rise, cid, ncs, graphicstate):  # noqa: D102
         adv = super().render_char(matrix, font, fontsize, scaling, rise, cid, ncs, graphicstate)
         item = self.cur_item._objs[-1]
         a, b, c, d, e, f = matrix
         item.vox_baseline = b * 0 + d * rise + f
+        item.vox_invisible = self._render_mode in (3, 7)  # ni remplissage ni contour
         return adv
 
 
@@ -176,8 +190,12 @@ def read_page(ltpage, index: int) -> PageData:
     def td(y: float) -> float:
         return y_max - y
 
-    def walk(obj) -> None:
+    def walk(obj, clip=None) -> None:
         if isinstance(obj, LTChar):
+            if clip is not None:
+                cx, cy = (obj.x0 + obj.x1) / 2, (obj.y0 + obj.y1) / 2
+                if not (clip[0] - 0.5 <= cx <= clip[2] + 0.5 and clip[1] - 0.5 <= cy <= clip[3] + 0.5):
+                    return  # hors du cadre de son objet de formulaire : masqué à l'affichage
             add_char(obj)
         elif isinstance(obj, LTImage):
             w = max(0.0, min(obj.x1, x_max) - max(obj.x0, x_min))
@@ -188,9 +206,15 @@ def read_page(ltpage, index: int) -> PageData:
             if isinstance(obj, LTContainer):
                 for child in obj:
                     walk(child)
+        elif isinstance(obj, LTFigure):
+            box = obj.bbox
+            if clip is not None:
+                box = (max(box[0], clip[0]), max(box[1], clip[1]), min(box[2], clip[2]), min(box[3], clip[3]))
+            for child in obj:
+                walk(child, box)
         elif isinstance(obj, LTContainer):
             for child in obj:
-                walk(child)
+                walk(child, clip)
 
     def add_char(c: LTChar) -> None:
         raw = c.get_text()
@@ -214,27 +238,19 @@ def read_page(ltpage, index: int) -> PageData:
         baseline = td(getattr(c, "vox_baseline", f))
         if not (top - 0.5 * size <= baseline <= bottom + 0.5 * size):
             baseline = bottom - 0.2 * size
-        font = c.fontname or ""
-        chars.append(
-            Char(
-                text,
-                c.x0,
-                c.x1,
-                top,
-                bottom,
-                baseline,
-                size,
-                bool(_BOLD.search(font)),
-                bool(_ITALIC.search(font)),
-                len(chars),
-            )
-        )
+        style = font_style(c.fontname or "")
+        chars.append(Char(text, c.x0, c.x1, top, bottom, baseline, size, style[0], style[1], len(chars)))
 
     def add_graphic(g) -> None:
         w, h = g.x1 - g.x0, g.y1 - g.y0
         stroke = getattr(g, "stroke", True)
         fill = getattr(g, "fill", False)
-        if w <= 2.0 and h >= 3.0 or h <= 2.0 and w >= 3.0:
+        thin = w <= 2.0 and h >= 3.0 or h <= 2.0 and w >= 3.0
+        if thin or (stroke and not fill):
+            color = g.stroking_color if stroke and not (fill and thin) else g.non_stroking_color
+            if _is_light(color):
+                return  # filet presque blanc : invisible sur la page, il ne structure rien
+        if thin:
             segs.append(Seg(g.x0, td(g.y1), g.x1, td(g.y0)))  # filet (même dessiné par un rectangle plein)
         elif isinstance(g, LTRect) and w > 2.0 and h > 2.0:
             if stroke:
@@ -242,6 +258,8 @@ def read_page(ltpage, index: int) -> PageData:
                 segs.extend([Seg(x0, t, x1, t), Seg(x0, bt, x1, bt), Seg(x0, t, x0, bt), Seg(x1, t, x1, bt)])
             elif fill:
                 fills.append(Seg(g.x0, td(g.y1), g.x1, td(g.y0)))
+        elif isinstance(g, LTCurve) and fill and not stroke and w > 40 and h > 10:
+            fills.append(Seg(g.x0, td(g.y1), g.x1, td(g.y0)))  # fond d'encadré (coins arrondis…)
         elif isinstance(g, LTCurve) and stroke and getattr(g, "pts", None):
             pts = g.pts
             for (xa, ya), (xb, yb) in zip(pts, pts[1:], strict=False):
@@ -260,6 +278,24 @@ def read_page(ltpage, index: int) -> PageData:
     vsegs = [s for s in segs if not s.horizontal]
     page.frags = build_frags(chars, vsegs, index)
     return page
+
+
+def _is_light(color) -> bool:
+    """Couleur très claire (blanc, gris très pâle) ; fonds de couleur pastel exclus des filets visibles."""
+    if color is None:
+        return False
+    try:
+        values = list(color) if isinstance(color, list | tuple) else [color]
+        values = [float(v) for v in values]
+    except (TypeError, ValueError):
+        return False
+    if len(values) == 1:
+        return values[0] > 0.85
+    if len(values) == 3:
+        return 0.3 * values[0] + 0.59 * values[1] + 0.11 * values[2] > 0.85
+    if len(values) == 4:  # CMJN
+        return max(values) < 0.15
+    return False
 
 
 # ---------------------------------------------------------------------------------------------------------
@@ -317,7 +353,52 @@ def _assign_rows(chars: list[Char]) -> list[_Row]:
             for k in range(int(best.top // step), int(best.bottom // step) + 1):
                 buckets.setdefault(k, []).append(best)
         best.chars.append(c)
-    return rows
+    return _attach_raised(rows)
+
+
+def _raised_next_to(cluster: list[Char], rc: Char) -> bool:
+    """Le petit groupe `cluster` est-il un exposant collé au caractère `rc` ?"""
+    x0, x1 = cluster[0].x0, cluster[-1].x1
+    size = max(c.size for c in cluster)
+    bottom = max(c.bottom for c in cluster)
+    base = max(c.baseline for c in cluster)
+    near = rc.x1 - 1 <= x0 <= rc.x1 + 0.3 * rc.size or rc.x0 - 0.3 * rc.size <= x1 <= rc.x0 + 1
+    return (
+        near
+        and 0.3 * rc.size <= size <= 0.85 * rc.size
+        and rc.top <= bottom <= rc.baseline + 0.1 * rc.size
+        and base <= rc.baseline - 0.2 * rc.size
+    )
+
+
+def _attach_raised(rows: list[_Row]) -> list[_Row]:
+    """Exposant très surélevé (« 1er » dans une petite police) : son centre sort de la ligne et il forme
+    une ligne à lui seul. Un tel groupe de quatre caractères au plus, plus petit que la ligne du dessous,
+    dont le pied tombe dans cette ligne et qui touche un de ses caractères, lui est rattaché."""
+    keep: list[_Row] = []
+    for row in rows:
+        clusters: list[list[Char]] = []
+        for c in sorted(row.chars, key=lambda c: c.x0):
+            if clusters and c.x0 - clusters[-1][-1].x1 <= 0.5 * c.size:
+                clusters[-1].append(c)
+            else:
+                clusters.append([c])
+        rest: list[Char] = []
+        for cl in clusters:
+            target = None
+            if sum(len(c.text) for c in cl) <= 4:
+                for r in rows:
+                    if r is not row and any(_raised_next_to(cl, rc) for rc in r.chars):
+                        target = r
+                        break
+            if target is not None:
+                target.chars.extend(cl)
+            else:
+                rest.extend(cl)
+        if rest:
+            row.chars = rest
+            keep.append(row)
+    return keep
 
 
 def build_frags(chars: list[Char], vsegs: list[Seg], page: int) -> list[Frag]:
@@ -334,8 +415,61 @@ def build_frags(chars: list[Char], vsegs: list[Seg], page: int) -> list[Frag]:
                 break
     frags: list[Frag] = []
     for r in rows:
-        frags.extend(_split_row(r, vsegs, page))
+        for layer in _layers(r):
+            frags.extend(_split_row(layer, vsegs, page))
     return _merge_small(frags)
+
+
+def _layers(row: _Row) -> list[_Row]:
+    """Deux textes imprimés l'un sur l'autre (calque masqué, texte écrasé) produiraient un mélange de
+    lettres une fois triés par abscisse. On sépare la ligne en « couches » : suites de caractères consécutifs
+    dans le flux, qui ne se chevauchent pas entre elles."""
+    chars = sorted(row.chars, key=lambda c: c.order)
+    runs: list[list[Char]] = []
+    for c in chars:
+        if runs:
+            last = runs[-1][-1]
+            if (
+                c.order == last.order + 1
+                and c.x0 >= last.x0 - 0.5
+                and abs(c.size - last.size) < 0.3 * last.size
+            ):
+                runs[-1].append(c)
+                continue
+        runs.append([c])
+    solid_runs = [r for r in runs if sum(1 for c in r if not c.is_space) >= 3]
+    if len(solid_runs) < 2:
+        return [row]
+
+    def span(run: list[Char]) -> tuple[float, float]:
+        return min(c.x0 for c in run), max(c.x1 for c in run)
+
+    def collide(a: list[Char], b: list[Char]) -> bool:
+        (a0, a1), (b0, b1) = span(a), span(b)
+        inter = min(a1, b1) - max(a0, b0)
+        if inter <= 0.5 * min(a1 - a0, b1 - b0):
+            return False
+        hits = sum(
+            1
+            for c in b
+            if not c.is_space and any(d.x0 < (c.x0 + c.x1) / 2 < d.x1 for d in a if not d.is_space)
+        )
+        return hits >= 3
+
+    if not any(collide(a, b) for i, a in enumerate(solid_runs) for b in solid_runs[i + 1 :]):
+        return [row]
+    layers: list[list[list[Char]]] = []
+    for run in sorted(runs, key=len, reverse=True):
+        for layer in layers:
+            if not any(collide(other, run) or collide(run, other) for other in layer):
+                layer.append(run)
+                break
+        else:
+            layers.append([run])
+    return [
+        _Row(row.top, row.bottom, row.size, row.baseline, [c for run in layer for c in run])
+        for layer in layers
+    ]
 
 
 def _crosses_rule(x_a: float, x_b: float, y: float, vsegs: list[Seg]) -> bool:
@@ -357,9 +491,14 @@ def _split_row(row: _Row, vsegs: list[Seg], page: int) -> list[Frag]:
         if cur and extent is not None:
             gap = c.x0 - extent
             size = max(c.size, row.size * 0.8)
-            bridged = pending_space is not None and gap < 2.5 * size
-            head = "".join(x.text for x in cur).strip()
-            marker = bool(LIST_MARKER.match(head)) and gap < 4 * size
+            # un glyphe d'espace ne fait le pont que s'il comble vraiment le blanc (les espaces de fin de
+            # ligne, fréquents, ne doivent pas souder deux colonnes)
+            bridged = pending_space is not None and gap < 2.5 * size and c.x0 - pending_space.x1 < 0.8 * size
+            marker = (
+                len(cur) <= 6
+                and bool(LIST_MARKER.match("".join(x.text for x in cur).strip()))
+                and gap < 4 * size
+            )
             split = gap > 1.0 * size and not bridged and not marker
             if gap > 0.5 and _crosses_rule(extent, c.x0, row.baseline, vsegs):
                 split = True
@@ -597,10 +736,32 @@ def _inside(a, b, tol: float = 2.0) -> bool:
 
 
 def _rule_tables(hs: list[Seg], frags: list[Frag]) -> list[Region]:
-    """Tableaux sans filets verticaux : au moins deux filets horizontaux de même largeur encadrant des lignes
-    de plusieurs cellules courtes."""
+    """Tableaux sans filets verticaux : filets horizontaux de même largeur, consécutifs, encadrant des
+    lignes de plusieurs cellules courtes. Une bande de texte suivi (prose en colonnes) arrête le tableau :
+    un filet de pied de page de même largeur ne doit pas l'étendre jusqu'en bas de page."""
     out: list[Region] = []
     hs = sorted((s for s in hs if s.x1 - s.x0 >= 50), key=lambda s: s.top)
+    # filets doublés (même position) : un seul
+    uniq: list[Seg] = []
+    for s in hs:
+        if not any(abs(s.top - u.top) < 1 and abs(s.x0 - u.x0) < 2 and abs(s.x1 - u.x1) < 2 for u in uniq):
+            uniq.append(s)
+    hs = uniq
+
+    def band(x0: float, x1: float, top: float, bottom: float) -> list[Frag]:
+        return [
+            f for f in frags if x0 - 2 <= f.x0 and f.x1 <= x1 + 2 and top <= (f.top + f.bottom) / 2 <= bottom
+        ]
+
+    def tabular(inside: list[Frag], x0: float, x1: float) -> bool:
+        if not inside:
+            return False
+        rows = _rows_of(inside)
+        multi = sum(1 for r in rows if len(r) >= 2)
+        wide = any(f.x1 - f.x0 > 0.7 * (x1 - x0) for f in inside)
+        prose = sum(1 for f in inside if len(f.text) > 50)
+        return multi >= 0.5 * len(rows) and not wide and prose <= 0.3 * len(inside)
+
     used: set[int] = set()
     for i, s in enumerate(hs):
         if i in used:
@@ -608,22 +769,19 @@ def _rule_tables(hs: list[Seg], frags: list[Frag]) -> list[Region]:
         group = [s]
         for j in range(i + 1, len(hs)):
             t = hs[j]
-            if abs(t.x0 - s.x0) <= 4 and abs(t.x1 - s.x1) <= 4:
-                group.append(t)
-                used.add(j)
+            if abs(t.x0 - s.x0) > 4 or abs(t.x1 - s.x1) > 4:
+                continue
+            inside = band(s.x0, s.x1, group[-1].top, t.top)
+            if inside and not tabular(inside, s.x0, s.x1):
+                break
+            group.append(t)
+            used.add(j)
         if len(group) < 2:
             continue
         x0, x1 = s.x0, s.x1
         top, bottom = group[0].top, group[-1].bottom
-        inside = [
-            f for f in frags if x0 - 2 <= f.x0 and f.x1 <= x1 + 2 and top <= (f.top + f.bottom) / 2 <= bottom
-        ]
-        rows = _rows_of(inside)
-        if len(rows) < 2:
-            continue
-        multi = sum(1 for r in rows if len(r) >= 2)
-        wide = any(f.x1 - f.x0 > 0.7 * (x1 - x0) for f in inside)
-        if multi >= 0.6 * len(rows) and not wide:
+        inside = band(x0, x1, top, bottom)
+        if len(_rows_of(inside)) >= 2 and tabular(inside, x0, x1):
             out.append(Region("table", x0, top, x1, bottom, [], [g.top for g in group]))
     return out
 
@@ -897,7 +1055,12 @@ class _Orderer:
             return self.leaf(items, col, region)
         groups: list[list] = [bands[0]]
         for b in bands[1:]:
-            if _vcuts(groups[-1] + b, self.min_gap):
+            # une bande ne rejoint le groupe précédent que si celui-ci est déjà en colonnes
+            if (
+                len(groups[-1]) > 1
+                and _vcuts(groups[-1], self.min_gap)
+                and _vcuts(groups[-1] + b, self.min_gap)
+            ):
                 groups[-1] = groups[-1] + b
             else:
                 groups.append(b)
@@ -921,7 +1084,16 @@ class _Orderer:
 
     def region(self, reg: Region, parent: int) -> list:
         if reg.kind == "table":
-            return [self.table(reg)]
+            table = self.table(reg)
+            cells = [cell for row in table.rows for cell in row]
+            full_rows = sum(1 for row in table.rows if sum(1 for c in row if c) >= 2)
+            if cells and sum(1 for c in cells if c) >= 0.4 * len(cells) and full_rows >= 2:
+                return [table]
+            # quadrillage presque vide (graphique, formulaire) : lu comme du texte ordinaire
+            frags = list(reg.frags)
+            for child in _walk(reg.children):
+                frags.extend(child.frags)
+            return self.order(self.merge(frags), (reg.x0, reg.x1), parent)
         items = self.merge(reg.frags) + list(reg.children)
         return self.order(items, (reg.x0, reg.x1), reg.ident)
 

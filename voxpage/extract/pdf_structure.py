@@ -17,7 +17,7 @@ _BULLET = re.compile(r"^[•◦▪▫‣⁃●○■□►▶➢➤✓✔∙·]\
 _DASH_ITEM = re.compile(r"^[–-]\s+\S")
 _CAPTION = re.compile(
     r"^(?:Figure|Fig\.|Tableau|Table|Illustration|Graphique|Schéma|Carte|Photo|Image|Planche|Chart|Graph|"
-    r"Plate|Encadré)\s*(?:n°\s*)?(?:\d+|[IVXLC]+)(?:[.-]\d+)?[a-z]?\s*[.:—–-]",
+    r"Plate|Encadré)\s*(?:n°\s*)?(?:\d+|[IVXLC]+)(?:[.-]\d+)?[a-z]?\s*[.:—–−-]",
 )
 _UNITS = frozenset("m cm mm km dm µm nm m/s s kg g l dl cl ml".split())
 _SUPERSCRIPT = str.maketrans("0123456789+-−=()n", "⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁻⁼⁽⁾ⁿ")
@@ -54,6 +54,94 @@ def render_line(line: Line) -> tuple[str, list[str]]:
         else:
             out += span.text  # « 1er », « XIXe », « Mlle »
     return out, calls
+
+
+# ---------------------------------------------------------------------------------------------------------
+# Éléments flottants
+
+
+def _short(line: Line) -> bool:
+    width = line.col_x1 - line.col_x0
+    return line.x1 < line.col_x1 - max(0.12 * width, 2 * line.size)
+
+
+def _body(item) -> bool:
+    return isinstance(item, Line) and item.region == 0
+
+
+def _below(prev: Line, line: Line) -> bool:
+    """`line` suit `prev` dans la même colonne (juste en dessous, sur la même page)."""
+    return (
+        prev.page == line.page
+        and line.top > prev.top + 0.3 * line.size
+        and line.top - prev.bottom < 1.5 * line.size
+        and line.x0 < prev.x1
+        and prev.x0 < line.x1
+    )
+
+
+def _same_font(a: Line, b: Line) -> bool:
+    return abs(a.size - b.size) <= 0.08 * max(a.size, b.size) and a.bold == b.bold
+
+
+def reorder_continuations(stream: list, body_size: float) -> list:
+    """Paragraphe interrompu au milieu d'une phrase par un encadré, un tableau, une figure ou une autre
+    colonne : on cherche sa suite (première ligne d'une colonne, en minuscule, même police, sur la même page
+    ou la suivante) et on la remonte juste après lui. Le contenu intercalé est lu ensuite, rien n'est perdu.
+    """
+    items = list(stream)
+    texts = {id(it): render_line(it)[0].strip() for it in items if isinstance(it, Line)}
+
+    def mid_sentence(line: Line) -> bool:
+        t = texts[id(line)]
+        return bool(t) and (ends_with_break_hyphen(t) or not t.endswith(_TERMINAL + (";",)))
+
+    def continues(prev: Line, line: Line) -> bool:
+        t = texts[id(line)]
+        return bool(t) and (ends_with_break_hyphen(texts[id(prev)]) or t[0].islower())
+
+    i = 0
+    while i < len(items) - 1:
+        it = items[i]
+        nxt = items[i + 1]
+        if (
+            not (_body(it) and mid_sentence(it))
+            or abs(it.size - body_size) > 0.08 * body_size  # seul le texte courant est concerné
+            or (_body(nxt) and _below(it, nxt))  # la colonne continue : pas d'interruption
+            or (_body(nxt) and continues(it, nxt) and _same_font(it, nxt))
+        ):
+            i += 1
+            continue
+        found = None
+        for j in range(i + 2, min(len(items), i + 600)):
+            cand = items[j]
+            if isinstance(cand, Line) and cand.page > it.page + 1:
+                break
+            if not (_body(cand) and _same_font(it, cand) and continues(it, cand)):
+                continue
+            before = items[j - 1]
+            if _body(before) and _below(before, cand) and _same_font(before, cand):
+                continue  # pas une tête de colonne
+            if _body(before) and mid_sentence(before) and _same_font(before, cand):
+                continue  # c'est la suite d'un autre paragraphe
+            found = j
+            break
+        if found is None:
+            i += 1
+            continue
+        k = found
+        while (
+            k + 1 < len(items)
+            and _body(items[k + 1])
+            and _below(items[k], items[k + 1])
+            and not (texts[id(items[k])].endswith(_TERMINAL) and _short(items[k]))
+        ):
+            k += 1
+        segment = items[found : k + 1]
+        del items[found : k + 1]
+        items[i + 1 : i + 1] = segment
+        i += 1
+    return items
 
 
 # ---------------------------------------------------------------------------------------------------------
@@ -212,7 +300,10 @@ class Builder:
             ):
                 self.start("list_item", line, text, calls)
                 return
-        same_font = abs(line.size - cur.lines[-1].size) <= 0.08 * max(line.size, 1) and line.bold == prev.bold
+        same_size = abs(line.size - cur.lines[-1].size) <= 0.08 * max(line.size, 1)
+        # passage gras/maigre : nouveau bloc, sauf au milieu d'une phrase (ligne suivante en minuscule)
+        mid_sentence = not prev_text.endswith(_TERMINAL) and stripped[0].islower()
+        same_font = same_size and (line.bold == prev.bold or mid_sentence)
         if line.region != prev.region or not same_font:
             self.start("paragraph", line, text, calls)
             return
@@ -226,7 +317,9 @@ class Builder:
         if jump:
             # changement de colonne ou de page : le paragraphe continue-t-il ?
             if cur.kind == "list_item":
-                cont = indent and not (prev_text.endswith(_TERMINAL) and self.is_short(prev))
+                cont = (indent and not (prev_text.endswith(_TERMINAL) and self.is_short(prev))) or (
+                    not prev_text.endswith(_TERMINAL) and stripped[0].islower()
+                )
             elif ends_with_break_hyphen(prev_text):
                 cont = True
             elif not prev_text.endswith(_TERMINAL):
@@ -266,7 +359,12 @@ class Builder:
             self.start("paragraph", line, text, calls)  # ligne isolée très courte : bloc à part
             return
         prev_indent = prev.x0 - prev.col_x0 > 0.8 * prev.size
-        if indent and not prev_indent and abs(line.x0 - prev.x0) > 0.8 * line.size:
+        if (
+            indent
+            and not prev_indent
+            and abs(line.x0 - prev.x0) > 0.8 * line.size
+            and prev_text.endswith(_TERMINAL)
+        ):
             self.start("paragraph", line, text, calls)
             return
         self.append(line, text, calls)
@@ -408,10 +506,19 @@ def apply_bookmarks(
 
 
 def heading_splits(blocks: list[_Block]) -> list[tuple[int, str]]:
-    levels = Counter(b.level for b in blocks if b.kind == "heading")
-    if not levels:
-        return []
-    chapter_level = min((lv for lv, n in levels.items() if n >= 2), default=None)
+    """Coupures de chapitres d'après les titres : le niveau le plus haut dont au moins deux titres sont
+    suivis de texte (un surtitre ou un titre de document isolé ne fait pas un chapitre)."""
+    with_body: Counter[int] = Counter()
+    for i, b in enumerate(blocks):
+        if b.kind != "heading":
+            continue
+        for nxt in blocks[i + 1 :]:
+            if nxt.kind == "heading" and nxt.level <= b.level:
+                break
+            if nxt.kind != "heading":
+                with_body[b.level] += 1
+                break
+    chapter_level = min((lv for lv, n in with_body.items() if n >= 2), default=None)
     if chapter_level is None:
         return []
     return [(i, b.text) for i, b in enumerate(blocks) if b.kind == "heading" and b.level == chapter_level]

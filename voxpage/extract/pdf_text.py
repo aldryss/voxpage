@@ -4,7 +4,8 @@ Règle de recollage des césures (fonction `keep_hyphen`), appliquée quand une 
 trait d'union collé à une lettre et que la suivante commence par un mot :
 
 1. le mot suivant ne commence pas par une lettre minuscule (« Jean-/Pierre », « 1914-/1918 ») → on garde ;
-2. la partie gauche contient déjà un trait d'union (« c'est-à-/dire », « arc-en-/ciel ») → on garde ;
+2. la partie gauche contient déjà un trait d'union (« c'est-à-/dire », « arc-en-/ciel »), ou le mot de
+   droite est lui-même suivi d'un trait d'union (« Île-/de-France ») → on garde ;
 3. le document lui-même tranche : si la forme avec trait d'union apparaît ailleurs (hors fin de ligne)
    plus souvent que la forme soudée, on garde ; dans le cas inverse, on soude ;
 4. éléments de composés connus (« peut-/être », « dit-/il », « après-/midi », « self-/evident ») ou
@@ -158,7 +159,8 @@ def join_lines(prev: str, nxt: str, stats: WordStats | None = None) -> str:
     if prev[-1] in HYPHENS and len(prev) >= 2 and prev[-2].isalpha():
         left = _left_word(prev)
         right = _right_word(nxt)
-        if keep_hyphen(left, right, stats):
+        compound_goes_on = nxt[len(right) : len(right) + 1] in tuple(HYPHENS) and bool(right)
+        if compound_goes_on or keep_hyphen(left, right, stats):  # « Île-/de-France »
             return prev[:-1] + "-" + nxt
         return prev[:-1] + nxt
     if prev[-1] in "/" and re.search(r"(?:https?://|www\.)\S*$", prev):

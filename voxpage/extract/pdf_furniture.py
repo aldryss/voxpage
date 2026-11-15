@@ -9,8 +9,8 @@ la marge (15 % de la hauteur), sont candidats. Un candidat est supprimé si :
 - ou son texte (chiffres neutralisés) revient dans la même marge sur au moins deux pages, dans une police
   pas plus grande que le corps du texte, et il est séparé du corps par un blanc net.
 
-La suppression part du bord de la page et s'arrête à la première ligne conservée : une ligne de corps
-de texte n'est jamais retirée parce qu'une ligne plus proche du bord lui ressemble.
+La suppression part du bord de la page et s'arrête à la première ligne non reconnue ; le blanc net est
+exigé entre la dernière ligne retirée et le corps du texte (sinon seuls les numéros de page partent).
 """
 
 import re
@@ -95,32 +95,42 @@ def detect_furniture(pages: list[PageData], body_size: float) -> set[int]:
     def is_repeated(f: Frag, zone: str) -> bool:
         return len(counts[(zone, _key(f.text))]) >= 2 and f.size <= 1.1 * body_size and bool(f.text.strip())
 
+    def gap_between(outer: list[Frag], inner: list[Frag] | None, zone: str) -> float:
+        if inner is None:
+            return float("inf")
+        if zone == "top":
+            return min(f.top for f in inner) - max(f.bottom for f in outer)
+        return min(f.top for f in outer) - max(f.bottom for f in inner)
+
     removed: set[int] = set()
     for page in pages:
         rows, top, bottom = layout[page.index]
         for zone, zrows in (("top", top), ("bottom", bottom)):
-            for k, row in enumerate(zrows):
-                # ligne voisine côté corps de texte
+            # lignes consécutives depuis le bord, entièrement reconnues (numéro ou texte répété)
+            block: list[list[Frag]] = []
+            partial: list[Frag] = []
+            for row in zrows:
                 pos = rows.index(row)
+                if block and abs(rows.index(block[-1]) - pos) != 1:
+                    break
+                known = [f for f in row if is_number(f, page) or is_repeated(f, zone)]
+                if len(known) == len(row):
+                    block.append(row)
+                    continue
+                if not block:
+                    # ligne du bord mêlant numéro de page et autre chose : seul le numéro part
+                    partial = [f for f in row if is_number(f, page)]
+                break
+            if block:
+                pos = rows.index(block[-1])
                 nb = pos + 1 if zone == "top" else pos - 1
-                neighbour = rows[nb] if 0 <= nb < len(rows) else None
-                if neighbour is None:
-                    gap = float("inf")
-                elif zone == "top":
-                    gap = min(f.top for f in neighbour) - max(f.bottom for f in row)
+                inner = rows[nb] if 0 <= nb < len(rows) else None
+                if gap_between(block[-1], inner, zone) >= 0.4 * body_size:
+                    for row in block:
+                        removed.update(map(id, row))
                 else:
-                    gap = min(f.top for f in row) - max(f.bottom for f in neighbour)
-                separated = gap >= 0.4 * body_size
-                drop = []
-                for f in row:
-                    if is_number(f, page) or (separated and is_repeated(f, zone)):
-                        drop.append(f)
-                if len(drop) != len(row):
-                    # ligne partiellement reconnue : on retire les morceaux reconnus, puis on s'arrête
-                    removed.update(map(id, drop))
-                    break
-                removed.update(map(id, drop))
-                # la ligne suivante n'est candidate que si celle-ci a été retirée
-                if neighbour is None or (k + 1 < len(zrows) and zrows[k + 1] is not neighbour):
-                    break
+                    # pas de blanc net avec le corps du texte : seuls les numéros de page sont sûrs
+                    for row in block:
+                        removed.update(id(f) for f in row if is_number(f, page))
+            removed.update(map(id, partial))
     return removed
