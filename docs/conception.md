@@ -125,14 +125,19 @@ class AudioOptions:
     format: Literal["mp3", "wav"] = "mp3"
     bitrate_kbps: int = 64                    # voix mono : 64 kbit/s suffit
     split: Literal["single", "chapters"] = "single"
-class AudioWriter:                            # utilisable avec `with`
+class AudioWriter:                            # utilisable avec `with` (close() si tout va bien, abort() sur exception)
     def __init__(self, output: Path, options: AudioOptions, title: str, author: str | None): ...
     def start_chapter(self, title: str) -> None
-    def write(self, samples: np.ndarray, sample_rate: int) -> None
-    def write_silence(self, ms: int) -> None
-    def close(self) -> list[Path]             # fichiers produits
+    def write(self, samples: np.ndarray, sample_rate: int) -> None   # int16 mono ; 1re fréquence = celle de la sortie, les autres sont rééchantillonnées
+    def write_silence(self, ms: int) -> None  # ignoré en tête de chapitre
+    def close(self) -> list[Path]             # fichiers produits (+ .m3u8 en mode "chapters") ; [] si aucun son
+    def abort(self) -> None                   # supprime tout ce qui a été produit, sans toucher aux fichiers préexistants
+    duration_s: float                         # propriété : durée totale écrite
+class AudioError(Exception)                   # message en français (destination non inscriptible, disque plein…)
 # "single" : un fichier, chapitres en trames ID3 CHAP/CTOC (mp3).
 # "chapters" : dossier `output` (sans extension) contenant 001 - Titre.mp3, … et une liste de lecture .m3u8.
+# Écriture : fichiers `.part` renommés à close() ; une sortie existante n'est remplacée qu'à la fermeture réussie.
+# MP3 : CBR mono avec trame « Info » (durée exacte, lecture sans blanc). Limite WAV : 4 Gio par fichier.
 
 # voxpage/settings.py
 @dataclass
