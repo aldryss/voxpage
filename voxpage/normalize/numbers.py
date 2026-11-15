@@ -61,7 +61,8 @@ _THOUSANDS_PLAIN = re.compile(r"(?<![\d.,])([1-9]\d{0,2}) (\d{3})(?![\d/:\-]|[.,
 # devant un tel nombre, « 12 345 » est probablement deux nombres distincts : on n'y touche pas
 _NOT_AMOUNT_BEFORE = re.compile(
     r"(?:\b(?:pages?|pp?\.|chapitres?|chap\.|n°|nº|numéros?|numbers?|no\.|art\.|articles?|§|"
-    r"figures?|fig\.|tableaux?|tables?|notes?|lignes?|lines?|versets?|rooms?|salles?)\s|[\d,]\s|[\d,]\s?[-–]\s?)$",
+    r"figures?|fig\.|tableaux?|tables?|notes?|lignes?|lines?|versets?|rooms?|salles?)\s|\d\s|(?<!\d)\d{1,3},\s|"
+    r"[\d,]\s?[-–]\s?)$",
     re.I,
 )
 _THOUSANDS_DOT = re.compile(r"(?<![\d.,])([1-9]\d{0,2})((?:\.\d{3}){2,})(?![\d]|\.\d)")
@@ -295,6 +296,29 @@ def money(text: str, lang: str) -> str:
     return re.sub(r"(?<![\w.,])(\d+)\s?EUR\b", lambda m: amount(m.group(1), None, "€"), text)
 
 
+_ENUM_DEGREE = re.compile(
+    r"^(\s*)(\d{1,2})\s?°(?=\s+(?!(?:à|au|aux|de|du|des|d|en|sous|sur|dans|environ|le|la|les|et|nord|sud|est|"
+    r"ouest|[NSEOCF]|Celsius|Fahrenheit)\b)[^\W\d_])"
+)
+
+
+def enumeration_degree(text: str, lang: str) -> str:
+    """« 1° ont en France… » en tête de phrase (textes juridiques et administratifs) : énumération
+    « premièrement, deuxièmement… », pas un angle ni une température."""
+    if lang != "fr":
+        return text
+
+    def rep(m: re.Match) -> str:
+        n = int(m.group(2))
+        if n == 0:
+            return m.group(0)
+        word = "premier" if n == 1 else ordinal_words(n, lang)
+        adverb = "premièrement" if n == 1 else word + "ment"
+        return f"{m.group(1)}{adverb},"
+
+    return _ENUM_DEGREE.sub(rep, text)
+
+
 def units(text: str, lang: str) -> str:
     r = _rules(lang)
     table = r.UNITS
@@ -333,8 +357,8 @@ def _frac_words(frac: str, lang: str) -> str:
     return " ".join(parts)
 
 
-_DEC_FR = re.compile(r"(?<![\w.,/])([-−]?)(\d+),(\d+)(?![\w]|[,.]\d)")
-_DEC_EN = re.compile(r"(?<![\w.,/])([-−]?)(\d+)\.(\d+)(?![\w]|[,.]\d)")
+_DEC_FR = re.compile(r"(?<![\w.,/+\-−])([-−+]?)(\d+),(\d+)(?![\w]|[,.]\d)")
+_DEC_EN = re.compile(r"(?<![\w.,/+\-−])([-−+]?)(\d+)\.(\d+)(?![\w]|[,.]\d)")
 
 
 def decimals(text: str, lang: str) -> str:
@@ -342,8 +366,10 @@ def decimals(text: str, lang: str) -> str:
     point = "virgule" if lang == "fr" else "point"
     minus = "moins" if lang == "fr" else "minus"
 
+    plus = "plus"
+
     def rep(m: re.Match) -> str:
-        sign = f"{minus} " if m.group(1) else ""
+        sign = {"": "", "+": f"{plus} "}.get(m.group(1), f"{minus} ")
         return f"{sign}{_w(int(m.group(2)), lang)} {point} {_frac_words(m.group(3), lang)}"
 
     return pat.sub(rep, text)
@@ -353,6 +379,9 @@ def decimals(text: str, lang: str) -> str:
 
 _ORD_SUFFIX = r"(?:er|ers|re|res|ère|ères|ere|eres|e|es|ème|èmes|eme|emes|ᵉ)"
 _ORD_DIGIT = re.compile(rf"(?<![\w.,/])(\d+)({_ORD_SUFFIX})(?![\w])")
+
+
+_YEAR_LETTER_AFTER = re.compile(r"\s*(?:[.,;:)\]]|$)")
 
 
 def ordinals(text: str, lang: str) -> str:
@@ -370,6 +399,8 @@ def ordinals(text: str, lang: str) -> str:
             return ordinal_words(1, lang, feminine=fem, plural=suf.endswith("s"))
         if n == 1:
             return m.group(0)  # « 1e » : ambigu
+        if suf == "e" and 1000 <= n <= 2999 and _YEAR_LETTER_AFTER.match(m.string, m.end()):
+            return m.group(0)  # « janvier 2025e. » : année suivie d'une lettre de référence (2025a, 2025b…)
         return ordinal_words(n, lang, plural=suf.endswith("s"))
 
     return _ORD_DIGIT.sub(rep, text)

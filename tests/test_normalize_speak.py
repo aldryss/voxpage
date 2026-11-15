@@ -114,6 +114,15 @@ FR = [
     ("jean.dupont@exemple.fr", "jean point dupont arobase exemple point fr"),
     ("https://www.exemple.fr/page-1", "w w w point exemple point fr slash page tiret 1"),
     ("Voir http://exemple.fr.", "Voir exemple point fr."),
+    # recette sur documents réels (issue #11)
+    ("En 2024, 663 000 bébés sont nés.", "En 2024, 663000 bébés sont nés."),  # Insee : chiffres lus un à un
+    ("soit +1,1 % par rapport à 2023", "soit plus un virgule un pour cent par rapport à 2023"),
+    ("(-3 %) et -84 et −6,6 %", "(moins 3 pour cent) et moins 84 et moins six virgule six pour cent"),
+    ("Pyramides des âges, janvier 2025e.", "Pyramides des âges, janvier 2025e."),  # lettre de référence
+    ("1° ont en France leur foyer ;", "premièrement, ont en France leur foyer ;"),  # impôts 2041-E
+    ("2° exercent en France une activité", "deuxièmement, exercent en France une activité"),
+    ("12° à l'ombre", "12 degrés à l'ombre"),
+    ("(cf paragraphe 1)", "(confer paragraphe 1)"),
 ]
 
 # cas « ne pas toucher » : l'ambiguïté impose de laisser le texte tel quel
@@ -136,6 +145,9 @@ FR_INTACT = [
     "Pas de 25h99.",
     "Le Dr est là.",
     "1, 2, 3 soleil",
+    "pages 12, 345 et 400",
+    "1, 234 personnes",
+    "La loi 99-209 et le COVID-19",
     "Le chat boit du lait.",
     "Elle a mangé 5 s.",
     "Une phrase simple.",

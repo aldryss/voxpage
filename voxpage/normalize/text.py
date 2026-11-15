@@ -154,6 +154,7 @@ def speak(sentence: str, lang: str) -> str:
     t = numbers.fractions(t, lang)
     t = numbers.money(t, lang)
     t = numbers.percents(t, lang)
+    t = numbers.enumeration_degree(t, lang)
     t = numbers.units(t, lang)
     t = numbers.ordinals(t, lang)
     t = numbers.romans(t, lang)
