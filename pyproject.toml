@@ -11,7 +11,8 @@ requires-python = ">=3.12"
 dependencies = [
     "pdfminer.six",
     "pypdfium2",
-    "sherpa-onnx",
+    # 2.x n'embarque plus espeak-ng (phonémisation Piper) : rester en 1.13.x
+    "sherpa-onnx>=1.13,<2",
     "numpy",
     "lameenc",
     "mutagen",

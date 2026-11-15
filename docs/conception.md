@@ -21,7 +21,7 @@ personnes malvoyantes. Windows, portable (un dossier à dézipper, rien à insta
 | Interface | wxPython (contrôles Win32 natifs) | bien supporté par les lecteurs d'écran (NVDA est écrit avec) |
 | Texte PDF | pdfminer.six (mise en page, polices) + pypdfium2 (signets, rendu des pages) | licences permissives (pas de PyMuPDF : AGPL) |
 | OCR (pages scannées) | à trancher par mesure dans l'issue OCR (RapidOCR ou Tesseract) | qualité mesurée sur du français |
-| Synthèse vocale | sherpa-onnx + voix Piper (ONNX) | locale, rapide sur CPU, voix françaises claires |
+| Synthèse vocale | sherpa-onnx épinglé `>=1.13,<2` + voix Piper (ONNX) | locale, rapide sur CPU, voix françaises claires ; la 2.x n'embarque plus espeak-ng (phonémisation des voix Piper), la 1.13.x oui et a une wheel Windows cp312 |
 | Encodage | lameenc (MP3), module `wave` (WAV), mutagen (tags, chapitres) | pas de ffmpeg à livrer |
 | Livrable | PyInstaller `--onedir`, zippé, construit sur `windows-latest` par GitHub Actions | pas de compilation croisée fiable depuis Linux |
 
