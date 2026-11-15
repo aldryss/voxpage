@@ -412,9 +412,8 @@ class PdfExtractor:
         if not any(ch.blocks for ch in chapters):
             if any(not _has_usable_text(p) for p in chosen):
                 raise ExtractError(
-                    f"« {path.name} » ne contient pas de texte lisible : il s'agit probablement "
-                    "d'un document "
-                    "scanné. La reconnaissance de caractères (OCR) est nécessaire pour le lire."
+                    f"« {path.name} » ne contient pas de texte lisible : il s'agit probablement d'un "
+                    "document scanné. La reconnaissance de caractères (OCR) est nécessaire pour le lire."
                 )
             raise ExtractError(f"« {path.name} » ne contient aucun texte.")
 

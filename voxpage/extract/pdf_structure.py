@@ -274,10 +274,6 @@ class Builder:
         self.cur.calls.extend((line.page, c) for c in calls)
         self.prev = line
 
-    def is_short(self, line: Line) -> bool:
-        width = line.col_x1 - line.col_x0
-        return line.x1 < line.col_x1 - max(0.12 * width, 2 * line.size)
-
     def add(self, line: Line, text: str, calls: list[str]) -> None:
         stripped = text.strip()
         if not stripped:
@@ -316,8 +312,11 @@ class Builder:
         indent = line.x0 - line.col_x0 > 0.8 * line.size
         if jump:
             # changement de colonne ou de page : le paragraphe continue-t-il ?
-            if cur.kind == "list_item":
-                cont = (indent and not (prev_text.endswith(_TERMINAL) and self.is_short(prev))) or (
+            if abs(line.baseline - prev.baseline) < 0.3 * line.size:
+                # même ligne de base, plus à droite : autre colonne ou cellule
+                cont = not prev_text.endswith(_TERMINAL) and stripped[0].islower()
+            elif cur.kind == "list_item":
+                cont = (indent and not (prev_text.endswith(_TERMINAL) and _short(prev))) or (
                     not prev_text.endswith(_TERMINAL) and stripped[0].islower()
                 )
             elif ends_with_break_hyphen(prev_text):
@@ -325,7 +324,7 @@ class Builder:
             elif not prev_text.endswith(_TERMINAL):
                 cont = not indent or not stripped[0].isupper()
             else:
-                cont = not indent and not self.is_short(prev)
+                cont = not indent and not _short(prev)
             if cont and cur.kind in ("paragraph", "list_item"):
                 self.append(line, text, calls)
             else:
@@ -347,7 +346,9 @@ class Builder:
             else:
                 self.append(line, text, calls)
             return
-        if prev_text.endswith(_TERMINAL) and self.is_short(prev):
+        if _short(prev) and (
+            prev_text.endswith(_TERMINAL) or (prev_text.endswith(";") and stripped[0].isupper())
+        ):
             self.start("paragraph", line, text, calls)
             return
         width = max(prev.col_x1 - prev.col_x0, 1.0)
@@ -545,12 +546,12 @@ def make_chapters(
                 if (note.page, note.marker) in b.calls:
                     target = i
                     break
-        if target is None:
+        if target is None:  # pas d'appel retrouvé : après le dernier bloc de la page (ou d'avant)
             for i, b in enumerate(blocks):
-                if note.page in b.pages:
+                if b.page <= note.page:
                     target = i
         if target is None:
-            target = len(blocks) - 1
+            target = 0
         anchors[target].append(note)
 
     groups: list[tuple[str, list[int]]] = []

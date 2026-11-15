@@ -82,6 +82,12 @@ class Extractor(Protocol):
                 progress: ProgressCb | None = None, cancel: CancelToken | None = None) -> Document: ...
 
 # voxpage/extract/base.py : class UnsupportedFormat(Exception)
+# voxpage/extract/base.py : class ExtractError(Exception)   # document illisible (protégé, endommagé, vide,
+#                           sélection de pages invalide) ; message en français destiné à l'utilisateur
+
+# voxpage/extract/ocr.py (issue OCR, facultatif) — appelé par l'extracteur PDF s'il existe :
+def ocr_page(pdf_path: Path, page_index: int, lang: str | None) -> str   # texte brut, paragraphes séparés
+                                                                         # par une ligne vide ; page_index à partir de 0
 # voxpage/lang.py
 def detect_lang(text: str) -> Literal["fr", "en"]    # mots-outils ; "fr" si égalité ou texte vide
 
@@ -165,6 +171,13 @@ class ConversionError(Exception): ...   # erreur prévue, message en français (
 ```
 
 Ajouter un format d'entrée = écrire un `Extractor` et l'enregistrer ; rien d'autre ne change.
+
+Extracteur PDF (`voxpage/extract/pdf.py` et `pdf_*.py`) : caractères (pdfminer) → fragments de ligne →
+retrait des en-têtes, pieds et numéros de page → notes de bas de page → tableaux et encadrés (filets, fonds) →
+ordre de lecture par découpage XY avec détection des gouttières → paragraphes (césures recollées selon les
+règles documentées dans `pdf_text.py`) → titres (signets du PDF, sinon taille et graisse), listes, légendes →
+chapitres. Les pages sans texte exploitable sont confiées à `ocr_page` si le module existe ; sinon un
+avertissement les nomme.
 
 ## Voix
 

@@ -153,7 +153,6 @@ class PageData:
     n_unknown: int = 0
     n_rotated: int = 0
     footnotes: list[Line] = field(default_factory=list)
-    footnote_sep: bool = False
 
 
 # ---------------------------------------------------------------------------------------------------------
@@ -563,7 +562,9 @@ def make_frag(chars: list[Char], page: int, letter_gap: float | None = None) -> 
     space_pending = False
     for c in chars:
         if c.is_space:
-            space_pending = prev is not None
+            # un glyphe d'espace imprimé par-dessus la lettre précédente (fréquent) ne sépare rien
+            if prev is not None and (c.x0 + c.x1) / 2 >= prev.x1 - 0.15 * size:
+                space_pending = True
             continue
         if prev is not None:
             gap = c.x0 - prev.x1
@@ -857,7 +858,6 @@ def split_footnotes(page: PageData, frags: list[Frag], body_size: float, prev_ha
         return frags
     notes = block[start:]
     upper = block[start - 1].bottom if start > 0 else body_bottom
-    page.footnote_sep = rule_above(notes[0], upper)
     page.footnotes = [
         _line(row, page.index, (min(f.x0 for f in notes), max(f.x1 for f in notes)))
         for row in _rows_of(notes)
@@ -1188,10 +1188,6 @@ def _column_extents(items: list) -> None:
                 close()
         run.append(it)
     close()
-
-
-def is_list_marker(text: str) -> bool:
-    return bool(LIST_MARKER.match(text))
 
 
 def starts_with_bullet(text: str) -> bool:
