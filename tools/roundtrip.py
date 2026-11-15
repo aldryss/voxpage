@@ -10,6 +10,13 @@ Modèle de reconnaissance (une fois, ~640 Mo, dans un dossier ignoré par git) :
 
     DEV_NET=1 ./dev python tools/roundtrip.py --telecharger
 
+Dictionnaire de prononciation (issue #13) : `--verifier-entrees CANDIDATES.txt` mesure, pour chaque
+écrit, la lecture sans dictionnaire (comportement de l'application) et avec chaque « dit » candidat
+(`ÉCRIT = dit1 | dit2 | …`) :
+une synthèse est jugée juste si la transcription contient les lettres de l'écrit (accents, espaces et
+ponctuation ignorés). `--sortie-dictionnaire` écrit le dictionnaire des entrées qui améliorent la lecture.
+`--prononciations FICHIER` applique un dictionnaire aux phrases du mode ordinaire.
+
 Puis :
 
     ./dev python tools/roundtrip.py [--vitesses 1.0,0.8,1.5] [--phrases fichier.txt] [--rapport sortie.md]
@@ -35,6 +42,7 @@ sys.path.insert(0, str(ROOT))
 
 from voxpage.document import Block, Chapter, Document  # noqa: E402
 from voxpage.normalize import NormalizeOptions, normalize  # noqa: E402
+from voxpage.normalize.lexicon import Lexicon, merge, read_entries  # noqa: E402
 from voxpage.normalize.text import speak  # noqa: E402
 
 ASR_DIR = ROOT / ".cache" / "asr"
@@ -91,10 +99,10 @@ SENTENCES = [
 # --------------------------------------------------------------------------------------------- texte
 
 
-def spoken(raw: str) -> str:
+def spoken(raw: str, lexicon: Lexicon | None = None) -> str:
     """Texte dit par l'application pour cette phrase (segments recollés)."""
     doc = Document("", None, "fr", [Chapter("", [Block("paragraph", raw)])], [])
-    return " ".join(s.text for ch in normalize(doc, NormalizeOptions()) for s in ch.segments)
+    return " ".join(s.text for ch in normalize(doc, NormalizeOptions(), lexicon) for s in ch.segments)
 
 
 def _num_words(text: str) -> str:
@@ -189,7 +197,9 @@ class Row:
     words: int
 
 
-def run(sentences: list[str], speeds: list[float], threads: int) -> list[Row]:
+def run(
+    sentences: list[str], speeds: list[float], threads: int, lexicon: Lexicon | None = None
+) -> list[Row]:
     from voxpage.tts.sherpa import SherpaEngine
 
     eng = SherpaEngine(ROOT / "voices", num_threads=threads)
@@ -202,7 +212,7 @@ def run(sentences: list[str], speeds: list[float], threads: int) -> list[Row]:
         for speed in speeds:
             t0 = time.time()
             for raw in sentences:
-                said = spoken(raw)
+                said = spoken(raw, lexicon)
                 pcm, rate = eng.synthesize(said, vid, spk, speed)
                 heard = transcribe(rec, to_16k(pcm, rate))
                 e, n = wer(comparable(said), comparable(heard))
@@ -232,6 +242,80 @@ def report(rows: list[Row], threshold: float) -> str:
     return "\n".join(out) + "\n"
 
 
+# --------------------------------------------------------------------------------------------- entrées
+
+ENTRY_SENTENCES = ["Selon {}, les chiffres ont baissé cette année.", "Le rapport de {} a été publié hier."]
+ENTRY_VOICES = [("fr_FR-siwis-medium", 0, "Siwis"), ("fr_FR-upmc-medium", 0, "Jessica")]
+
+
+def letters(text: str) -> str:
+    """Lettres seules, minuscules, sans accents : « E.D.F. » = « edf »."""
+    import unicodedata
+
+    t = unicodedata.normalize("NFD", text.lower().replace("œ", "oe"))
+    return "".join(c for c in t if c.isalpha() and not unicodedata.combining(c))
+
+
+def parse_candidates(path: Path) -> list[tuple[str, list[str]]]:
+    out = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        written, _, rest = line.partition("=")
+        out.append((written.strip(), [d.strip() for d in rest.split("|") if d.strip()]))
+    return out
+
+
+def check_entries(path: Path, threads: int, repeats: int, part: tuple[int, int]) -> list[dict]:
+    """Par écrit : réussites (sur les essais) sans dictionnaire, puis avec chaque dit candidat."""
+    from voxpage.tts.sherpa import SherpaEngine
+
+    eng = SherpaEngine(ROOT / "voices", num_threads=threads)
+    rec = recognizer(threads)
+    todo = parse_candidates(path)[part[0] :: part[1]]
+    results = []
+    for written, dits in todo:
+        target = letters(written)
+        variants = [("", None)] + [(d, Lexicon({written: d})) for d in dits]
+        row = {"written": written, "variants": []}
+        for dit, lex in variants:
+            good = total = 0
+            heard_all = []
+            for tpl in ENTRY_SENTENCES:
+                said = spoken(tpl.format(written), lex)
+                for vid, spk, _ in ENTRY_VOICES:
+                    for _ in range(repeats):
+                        pcm, rate = eng.synthesize(said, vid, spk, 1.0)
+                        heard = transcribe(rec, to_16k(pcm, rate))
+                        total += 1
+                        good += target in letters(heard)
+                        heard_all.append(heard)
+            row["variants"].append(
+                {"dit": dit, "good": good, "total": total, "said": said, "heard": heard_all}
+            )
+            label = dit or "(sans dictionnaire)"
+            print(f"{written!r} -> {label!r} : {good}/{total}", file=sys.stderr, flush=True)
+        results.append(row)
+    return results
+
+
+def entries_report(results: list[dict], gain: int) -> tuple[str, list[tuple[str, str]]]:
+    lines = ["| Écrit | Sans dictionnaire | Meilleur dit | Avec | Gain |", "|---|---|---|---|---|"]
+    kept: list[tuple[str, str]] = []
+    for r in results:
+        base = r["variants"][0]
+        best = max(r["variants"][1:], key=lambda v: v["good"], default=None)
+        if best is None:
+            continue
+        diff = best["good"] - base["good"]
+        lines.append(f"| {r['written']} | {base['good']}/{base['total']} | {best['dit']} | "
+                     f"{best['good']}/{best['total']} | {diff:+d} |")
+        if diff >= gain:
+            kept.append((r["written"], best["dit"]))
+    return "\n".join(lines) + "\n", kept
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--telecharger", action="store_true", help="télécharge le modèle Whisper small")
@@ -240,14 +324,45 @@ def main() -> None:
     ap.add_argument("--seuil", type=float, default=0.15, help="WER au-delà duquel une phrase est détaillée")
     ap.add_argument("--threads", type=int, default=4)
     ap.add_argument("--rapport", type=Path, help="écrit le rapport Markdown dans ce fichier")
+    ap.add_argument("--prononciations", type=Path, help="dictionnaire de prononciation à appliquer")
+    ap.add_argument("--verifier-entrees", type=Path, metavar="CANDIDATES", help="mesure des candidats")
+    ap.add_argument("--repetitions", type=int, default=2, help="synthèses par phrase et par voix (entrées)")
+    ap.add_argument("--gain", type=int, default=3, help="gain minimal (réussites) pour retenir une entrée")
+    ap.add_argument("--partie", default="0/1", help="I/N : ne traite que la part I sur N des candidats")
+    ap.add_argument("--resultats", type=Path, help="écrit les résultats bruts (JSON) des entrées")
+    ap.add_argument("--sortie-dictionnaire", type=Path, help="écrit les entrées retenues")
+    ap.add_argument("--fusionner", nargs="+", type=Path, metavar="JSON", help="rapport sur des résultats")
     a = ap.parse_args()
+    if a.fusionner:
+        import json
+
+        results = [r for f in a.fusionner for r in json.loads(f.read_text(encoding="utf-8"))]
+        text, kept = entries_report(results, a.gain)
+        print(text)
+        if a.sortie_dictionnaire:
+            a.sortie_dictionnaire.write_text("".join(f"{w} = {d}\n" for w, d in kept), encoding="utf-8")
+        return
+    if a.verifier_entrees:
+        import json
+
+        i, n = (int(x) for x in a.partie.split("/"))
+        results = check_entries(a.verifier_entrees, a.threads, a.repetitions, (i, n))
+        if a.resultats:
+            a.resultats.write_text(json.dumps(results, ensure_ascii=False, indent=1), encoding="utf-8")
+        text, kept = entries_report(results, a.gain)
+        print(text)
+        return
+    lexicon = None
+    if a.prononciations:
+        entries, _ = read_entries(a.prononciations)
+        lexicon = Lexicon(merge(entries, lang="fr"))
     if a.telecharger:
         download()
         return
     sentences = SENTENCES
     if a.phrases:
         sentences = [ln.strip() for ln in a.phrases.read_text(encoding="utf-8").splitlines() if ln.strip()]
-    rows = run(sentences, [float(v) for v in a.vitesses.split(",")], a.threads)
+    rows = run(sentences, [float(v) for v in a.vitesses.split(",")], a.threads, lexicon)
     text = report(rows, a.seuil)
     if a.rapport:
         a.rapport.write_text(text, encoding="utf-8")

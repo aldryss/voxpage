@@ -127,6 +127,57 @@ def export_text(exe: Path, src: Path, out: Path, label: str, phrases: list[str],
     return text
 
 
+def shipped_sample() -> tuple[str, str] | None:
+    """Une entrée « SIGLE = dit » du dictionnaire livré (lu dans le dépôt), à retrouver dans l'exe."""
+    path = ROOT / "voxpage" / "normalize" / "data" / "prononciations-fr.txt"
+    for line in path.read_text(encoding="utf-8-sig").splitlines():
+        m = re.match(r"^([A-Z]{2,5}) = (.+)$", line.strip())
+        if m:
+            return m.group(1), m.group(2)
+    return None
+
+
+def check_pronunciations(cli: Path, base: Path, app: Path) -> None:
+    """Dictionnaire de prononciation : option --prononciations, dictionnaire livré, diagnostic."""
+    text = base / "sigle.txt"
+    text.write_text("Le rapport de la ZXQ est publié, selon M. Nguyen.", encoding="utf-8")
+    dico = base / "prononciations é test.txt"
+    dico.write_text("\ufeff# essai\r\n[fr]\r\nZXQ = zed ix qu\r\nNguyen = nou-yène\r\n", encoding="utf-8")
+    export_text(
+        cli, text, base / "sans-dico.txt", "texte sans dictionnaire", ["la Z X Q est publié"],
+        "--sans-prononciations", forbidden=("zed ix qu",),
+    )
+    export_text(
+        cli, text, base / "avec-dico.txt", "texte avec --prononciations",
+        ["Le rapport de la zed ix qu est publié, selon monsieur nou-yène."],
+        "--prononciations", str(dico), forbidden=("Z X Q",),
+    )
+    sample = shipped_sample()
+    if sample is None:
+        fail("dictionnaire livré : aucune entrée « SIGLE = dit » trouvée dans le dépôt")
+        return
+    sigle, dit = sample
+    shipped_in = base / "livre.txt"
+    shipped_in.write_text(f"Le rapport de la {sigle} est publié.", encoding="utf-8")
+    # sans --prononciations : le dictionnaire de l'utilisateur est absent, le livré s'applique seul
+    export_text(
+        cli, shipped_in, base / "livre-defaut.txt", f"dictionnaire livré sans option ({sigle})",
+        [f"Le rapport de la {dit} est publié."],
+    )
+    p = run(cli, "--diagnostic")
+    fields = dict(line.split("=", 1) for line in p.stdout_text.splitlines() if re.match(r"\w+=", line))
+    shipped_fr = re.match(r"fr (\d+)", fields.get("prononciations_livrees", ""))
+    reported = Path(fields.get("prononciations", "").split(" (")[0]).resolve()
+    if (
+        reported == (app / "prononciations.txt").resolve()
+        and shipped_fr
+        and int(shipped_fr.group(1)) > 0
+    ):
+        ok(f"--diagnostic : dictionnaire utilisateur et {shipped_fr.group(1)} entrées livrées")
+    else:
+        fail(f"--diagnostic : prononciations absentes ou incorrectes : {fields}")
+
+
 def block_network(*exes: Path) -> None:
     """Règle de pare-feu sortante bloquant les exécutables (échec toléré : simple garde-fou)."""
     for exe in exes:
@@ -285,6 +336,7 @@ def main() -> int:
         ["Il pleuvait depuis trois jours", "Le vieux Mathias", "Hélène posa son tricot"],
         stderr_has="reconnu par OCR",
     )
+    check_pronunciations(cli, base, app)
     # Conversion audio du PDF scanné : OCR (onnxruntime) puis synthèse (sherpa-onnx) dans le même processus
     convert(
         cli, corpus / "scan.pdf", out_dir / "scanné.mp3", "PDF scanné → MP3", "--voix", "fr_FR-siwis-medium",

@@ -23,13 +23,13 @@ Vérifier le téléchargement (facultatif). Une somme SHA-256 est publiée à c�
 
 Pour convertir un document :
 
-1. Choisissez le document. Le bouton « Parcourir » (Alt+P) ou le raccourci Ctrl+O ouvre la fenêtre de choix de fichier. Vous pouvez aussi glisser le fichier sur la fenêtre. Les formats acceptés sont le PDF et le TXT.
+1. Choisissez le document. Le bouton « Parcourir » (Alt+I) ou le raccourci Ctrl+O ouvre la fenêtre de choix de fichier. Vous pouvez aussi glisser le fichier sur la fenêtre. Les formats acceptés sont le PDF et le TXT.
 2. Vérifiez le fichier de sortie. Voxpage propose un fichier placé à côté du document, avec le même nom et l'extension du format (par exemple « livre.mp3 »). Pour choisir un autre emplacement, utilisez « Choisir la sortie » (Alt+H). Si le fichier existe déjà, Voxpage demande s'il faut le remplacer. Avec le découpage « Un fichier par chapitre », ce bouton demande un dossier parent : le dossier de sortie prend alors le nom du document.
 3. Réglez les options : voix (Alt+V), locuteur (Alt+L, seulement pour les voix à plusieurs locuteurs), vitesse (Alt+T), format (Alt+M), découpage (Alt+D), notes de bas de page (Alt+N) et reconnaissance de texte OCR (Alt+O). Les détails sont dans la section « Réglages ».
 4. Pour entendre un court extrait avec la voix et la vitesse choisies, utilisez « Écouter un extrait » (Alt+U). Le bouton devient alors « Arrêter l'extrait » ; appuyez de nouveau dessus pour arrêter.
 5. Lancez la conversion avec « Convertir » (Alt+C) ou Ctrl+Entrée. La barre de progression et la zone « Résultat » indiquent l'avancement.
 6. Pour annuler une conversion en cours, appuyez sur Échap ou utilisez « Annuler » (Alt+A). Si vous fermez la fenêtre pendant une conversion, Voxpage demande une confirmation puis annule la conversion.
-7. À la fin, la zone « Résultat » indique le ou les fichiers produits, la durée de l'audio et les avertissements éventuels. « Ouvrir le dossier » (Alt+I) ouvre le dossier qui contient les fichiers.
+7. À la fin, la zone « Résultat » indique le ou les fichiers produits, la durée de l'audio et les avertissements éventuels. « Ouvrir le dossier » (Alt+E) ouvre le dossier qui contient les fichiers.
 
 La zone « Résultat » est annoncée par le lecteur d'écran. Après une conversion, le focus est placé sur cette zone.
 
@@ -45,7 +45,7 @@ La zone « Résultat » est annoncée par le lecteur d'écran. Après une conver
 Lettres des contrôles :
 
 - Alt+F : Fichier à convertir
-- Alt+P : Parcourir
+- Alt+I : Parcourir
 - Alt+S : Fichier de sortie
 - Alt+H : Choisir la sortie
 - Alt+V : Voix
@@ -59,7 +59,8 @@ Lettres des contrôles :
 - Alt+C : Convertir
 - Alt+A : Annuler
 - Alt+X : Exporter le texte
-- Alt+I : Ouvrir le dossier
+- Alt+P : Prononciations
+- Alt+E : Ouvrir le dossier
 - Alt+R : Résultat
 
 ## Réglages
@@ -79,6 +80,47 @@ Notes de bas de page. « Ignorer » (par défaut), « Lire dans le texte » ou �
 OCR. « Automatique » (par défaut) ne tente la reconnaissance de texte que sur les pages qui n'ont pas de texte exploitable. « Jamais » et « Toujours » forcent le comportement. Les pages reconnues par OCR peuvent contenir des erreurs : voir « Limites connues ».
 
 Réglages disponibles seulement en ligne de commande ou dans settings.json : les pages à lire (option --pages), la non-annonce des titres (option --sans-titres) et les durées de pause entre phrases, paragraphes et titres.
+
+## Prononciations
+
+Les voix lisent mal certains sigles (EDF, CDI, UE), noms propres (Nguyen) ou mots rares. Le dictionnaire de prononciation permet de dire à la voix comment les lire. Le bouton « Prononciations » (Alt+P) ouvre le dialogue qui le gère.
+
+Une entrée s'écrit « écrit = dit » :
+
+    INRIA = inria
+    EDF = eu dé effe
+    Nguyen = nou-yène
+    c.-à-d. = c'est-à-dire
+
+Le « dit » est du texte ordinaire, lu tel quel par la voix : inutile d'apprendre une écriture phonétique. Il n'est plus retraité ensuite (un sigle dit n'est pas épelé une seconde fois).
+
+Règles de correspondance :
+
+- Seuls les mots ou expressions entiers sont remplacés : « UE » ne touche ni « QUEUE » ni « bleue », mais s'applique dans « l'UE », « (UE) », « UE. » et « pro-UE ». Une expression de plusieurs mots est admise (« Jean Dupont = jan dupon »), et la plus longue l'emporte.
+- Une entrée qui contient une majuscule est sensible à la casse (« Nguyen » ne touche pas « NGUYEN »). Une entrée tout en minuscules l'ignore (« inria » vaut pour INRIA et Inria).
+- Le pluriel n'est pas deviné : pour « CDIs », ajoutez une entrée « CDIs = … ».
+
+Dans le dialogue : la liste montre vos entrées (colonnes « Écrit », « Dit » et « Langue »). Saisissez l'écrit (Alt+C), le dit (Alt+D) et la langue (Alt+L : toutes, français ou anglais), puis « Ajouter » (Alt+A). Sélectionnez une entrée pour la changer (« Modifier », Alt+M) ; la touche Suppr ou « Supprimer » (Alt+S) la retire après confirmation. « Écouter » (Alt+U) lit le dit avec la voix choisie dans la fenêtre principale ; « Écouter sans le dictionnaire » (Alt+T) lit l'écrit comme Voxpage le lirait sans entrée, pour comparer. Les changements sont enregistrés aussitôt. Échap ferme le dialogue.
+
+Deux dictionnaires sont réunis : celui que Voxpage livre pour chaque langue (les sigles français courants que les voix disent mal) et le vôtre. Le vôtre l'emporte. Une entrée sans dit (« EDF = ») annule l'entrée livrée correspondante.
+
+Où est le fichier. Vos entrées sont dans prononciations.txt, à côté de settings.json (donc à côté de Voxpage.exe, ou dans %APPDATA%\Voxpage si ce dossier est protégé en écriture). Le bouton « Ouvrir le fichier » (Alt+O) l'ouvre dans le Bloc-notes. Au retour dans le dialogue, la liste est mise à jour. C'est un fichier texte UTF-8, fait pour être modifié à la main avec un lecteur d'écran :
+
+    # Mon dictionnaire (une ligne qui commence par # est un commentaire)
+    EDF = eu dé effe
+    
+    [fr]
+    CHU = chu
+    
+    [en]
+    GCHQ = gee see aitch queue
+
+- Une entrée par ligne ; les lignes vides sont ignorées.
+- Les sections facultatives [fr] et [en] limitent les entrées qui suivent à une langue ; hors section (ou sous [toutes]), l'entrée vaut pour toutes les langues. La langue est celle détectée dans le document.
+- Une ligne invalide est ignorée, sans empêcher la conversion ; Voxpage l'indique parmi les avertissements, avec son numéro de ligne.
+- Les commentaires et l'ordre sont conservés quand vous modifiez la liste depuis la fenêtre.
+
+En ligne de commande : --prononciations FICHIER utilise ce fichier à la place de prononciations.txt pour cette conversion (le dictionnaire livré reste appliqué), et --sans-prononciations ignore les deux dictionnaires. --diagnostic indique le chemin du fichier et le nombre d'entrées lues.
 
 ## Vérifier le texte avant d'écouter
 
@@ -108,6 +150,8 @@ Options :
 - --notes {ignorer,texte,fin} : notes de bas de page.
 - --ocr {auto,jamais,toujours} : reconnaissance de texte des pages scannées.
 - --sans-titres : ne pas annoncer les titres.
+- --prononciations FICHIER : dictionnaire de prononciation à utiliser à la place de prononciations.txt.
+- --sans-prononciations : ignorer les dictionnaires de prononciation (livré et utilisateur).
 - --texte FICHIER.txt : exporter le texte qui serait lu, au lieu de l'audio.
 - --liste-voix : afficher les voix disponibles, puis quitter.
 - --diagnostic : vérifier l'installation, puis quitter.

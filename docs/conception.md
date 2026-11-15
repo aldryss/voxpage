@@ -114,7 +114,21 @@ class NormalizeOptions:
     sentence_pause_ms: int = 250
     paragraph_pause_ms: int = 700
     heading_pause_ms: int = 1200
-def normalize(doc: Document, options: NormalizeOptions) -> list[SpeechChapter]
+def normalize(doc: Document, options: NormalizeOptions,
+              lexicon: Lexicon | None = None) -> list[SpeechChapter]   # lexicon : dictionnaire de prononciation de la langue du document
+def spoken_title(title: str, lang: str, options=None, lexicon: Lexicon | None = None) -> list[str]
+
+# voxpage/normalize/lexicon.py — dictionnaire de prononciation « écrit = dit » (issue #13), voir plus bas
+class Lexicon:                # dictionnaire fusionné pour une langue
+    def __init__(self, mapping: dict[str, str] | None = None, lang: str = "fr")
+    def apply(text) -> str    # écrits connus -> repères opaques (protégés des règles suivantes)
+    def restore(text) -> str  # repères -> « dit » ; say() = restore(apply())
+@dataclass LexiconSource:     # d'où vient le dictionnaire d'une conversion
+    user_path: Path | None = None; shipped: bool = True; user: bool = True
+    def load(lang) -> LoadedLexicon      # .lexicon, .user_path, .user_entries, .shipped_entries, .problems, .warnings()
+class LexiconFile:            # fichier de l'utilisateur, modifié ligne à ligne (commentaires et ordre conservés)
+    add / update / remove / save ; entries, problems
+def parse(text) -> (list[Entry], list[Problem]) ; def read_entries(path) ; def merge(*sources, lang) -> dict
 
 # voxpage/tts/base.py
 @dataclass
@@ -154,6 +168,7 @@ class Settings:                               # sérialisé en JSON à côté de
     voice_id: str = ""; speaker: int = 0; speed: float = 1.0
     extract: ExtractOptions; normalize: NormalizeOptions; audio: AudioOptions   # valeurs par défaut des dataclasses
 def load() -> Settings ; def save(s: Settings) -> None ; def app_dir() -> Path ; def voices_dir() -> Path
+def pronunciations_path() -> Path ; def pronunciations_read_path() -> Path | None   # prononciations.txt, voir « Prononciations »
 # settings.json : dans app_dir() (dossier de l'exe si gelé, sinon racine du dépôt) ; si non inscriptible,
 # repli sur %APPDATA%\Voxpage (Windows) ou ~/.config/voxpage. load() ignore clés inconnues et valeurs invalides.
 # voices_dir() = app_dir()/voices, surchargeable par la variable d'environnement VOXPAGE_VOICES.
@@ -161,12 +176,15 @@ def load() -> Settings ; def save(s: Settings) -> None ; def app_dir() -> Path ;
 # voxpage/pipeline.py
 def convert(input: Path, output: Path, settings: Settings,
             progress: ProgressCb | None = None, cancel: CancelToken | None = None,
-            engine: TtsEngine | None = None) -> ConvertResult   # engine : injection pour les tests
+            engine: TtsEngine | None = None,
+            pronunciations: LexiconSource | None = None) -> ConvertResult   # engine : injection pour les tests
 @dataclass
 class ConvertResult:
     files: list[Path]; duration_s: float; warnings: list[str]
 def extract_text(input: Path, settings: Settings,
-                 progress: ProgressCb | None = None, cancel: CancelToken | None = None) -> str   # « exporter le texte »
+                 progress: ProgressCb | None = None, cancel: CancelToken | None = None,
+                 warnings: list[str] | None = None,
+                 pronunciations: LexiconSource | None = None) -> str   # « exporter le texte »
 class ConversionError(Exception): ...   # erreur prévue, message en français (aucun texte lisible, voix introuvable, sortie non inscriptible…)
 # Toute erreur remonte en ConversionError (ou Cancelled) et laisse le disque propre. Voix vide = voix par défaut de la
 # langue du document (Siwis en français, voir tts/base.default_voice ; à défaut la première voix de cette langue) ; voix d'une autre langue = avertissement, pas de changement. Segment en échec : une nouvelle
@@ -191,6 +209,63 @@ annoncés « Tableau. » / « Fin du tableau. » et lus « en-tête : valeur » 
 en-tête sûr. Les sigles qui ne se prononcent pas comme un mot sont épelés par `normalize/acronyms.py`
 (lettres séparées par une espace, forme que les voix disent le mieux ; liste de sigles lus comme des mots).
 
+## Prononciations
+
+Les voix disent mal certains sigles, noms propres et mots rares (mesures : `recette.md`). Le dictionnaire de
+prononciation (`voxpage/normalize/lexicon.py`) permet de préciser comment les lire. Une entrée est
+`écrit = dit` (`EDF = eu dé effe`, `Nguyen = nou-yène`, `c.-à-d. = c'est-à-dire`) ; le « dit » est du texte
+ordinaire, lu tel quel (aucune phonétique à apprendre).
+
+**Sources.** Deux dictionnaires sont fusionnés : celui livré par langue (`voxpage/normalize/data/
+prononciations-fr.txt` et `-en.txt`, données du paquet, ajoutées à l'exécutable par `voxpage.spec`) et celui
+de l'utilisateur, `prononciations.txt` à côté de `settings.json` (même dossier portable, même repli sur
+`%APPDATA%\Voxpage`). L'utilisateur l'emporte ; une entrée utilisateur au dit vide (`mot =`) annule l'entrée
+livrée de même écrit. Le pipeline charge le dictionnaire de la langue du document (`LexiconSource.load`).
+
+**Fichier.** UTF-8 (BOM et fins de ligne Windows acceptés ; à défaut d'UTF-8 valide, lu en ANSI), une entrée
+par ligne, `#` pour un commentaire en début de ligne, lignes vides ignorées, sections facultatives `[fr]`,
+`[en]` et `[toutes]` (hors section : toutes les langues). La lecture est tolérante : une ligne invalide est
+ignorée et signalée (« ligne 3 ignorée : … ») dans les avertissements de la conversion, sans l'empêcher. Dans un
+même fichier, l'entrée propre à une langue l'emporte sur l'entrée « toutes langues ». Les écritures depuis
+l'application (`LexiconFile`) modifient le fichier ligne à ligne : commentaires, lignes invalides et ordre sont
+conservés, fins de ligne et BOM aussi, l'écriture passe par un fichier temporaire renommé.
+
+**Correspondance.** Mots ou expressions entiers seulement : une frontière est tout caractère qui n'est pas
+une lettre ou un chiffre (apostrophes, traits d'union, ponctuation, parenthèses : « l'INRIA », « (EDF) »,
+« EDF. », « pro-UE »), mais jamais l'intérieur d'un mot (« UE » ne touche ni « QUEUE » ni « bleue »). Une
+apostrophe précédant l'écrit n'est une frontière qu'après une élision (« l' », « d' », « qu' »… en français ;
+jamais en anglais : « O'Neil »). Une entrée qui contient une majuscule est sensible à la casse, une entrée tout
+en minuscules ne l'est pas (l'entrée à la casse exacte l'emporte). Les espaces d'une expression valent n'importe
+quelle suite d'espaces ou de retours à la ligne, les deux apostrophes (`'` et `’`) sont équivalentes. La plus
+longue entrée l'emporte. Le pluriel n'est pas deviné (« CDIs » demande sa propre entrée). Toutes les entrées
+forment une seule expression régulière compilée (arbre de préfixes) : environ 0,2 s pour un livre de 800 000
+caractères et 500 entrées.
+
+**Place dans la chaîne.** Dans `_block_segments`, après le nettoyage du bloc et avant la remise en casse des
+titres en capitales : `Lexicon.apply` remplace chaque écrit reconnu par un repère opaque (quatre capitales
+mathématiques grasses, U+1D400…, qui sont des lettres majuscules pour la découpe en phrases et la remise en
+casse mais ne ressemblent ni à un sigle, ni à un nombre, ni à un mot). Les règles suivantes (découpe en phrases,
+URL, nombres, dates, abréviations, sigles, symboles) ne voient donc que le repère. Une fois la phrase réécrite
+(`speak`), `Lexicon.restore` met le dit à la place. Le dit n'est ainsi retraité ni par les règles de sigles, ni
+par les règles de nombres ou de casse.
+
+**Interface.** Le bouton « Prononciations… » (Alt+P) ouvre `gui/pronunciation_dialog.py` (logique sans wx dans
+`gui/pronunciations.py`) : liste des entrées de l'utilisateur (colonnes « Écrit », « Dit », « Langue »), champs
+« Écrit » et « Dit », langue (toutes, français, anglais), Ajouter / Modifier / Supprimer (la touche Suppr
+aussi, avec confirmation), « Écouter » (le dit, avec la voix de la fenêtre principale), « Écouter sans le
+dictionnaire » (l'écrit tel que Voxpage le lirait sans entrée), « Ouvrir le fichier » (Bloc-notes ; la liste est
+relue au retour si le fichier a changé), Fermer (Échap). Chaque modification est enregistrée aussitôt.
+`--gui-self-test` couvre le dialogue (accessibilité, ajout, modification, suppression, écoute, relecture).
+Le bouton « Parcourir » passe en Alt+I et « Ouvrir le dossier » en Alt+E pour laisser Alt+P à « Prononciations ».
+
+**Ligne de commande.** `--prononciations FICHIER` remplace le fichier de l'utilisateur pour la conversion (le
+dictionnaire livré reste appliqué) ; `--sans-prononciations` ignore le livré et celui de l'utilisateur ;
+`--diagnostic` indique le chemin du fichier, le nombre d'entrées lues et le nombre d'entrées livrées par langue.
+
+**Dictionnaire livré.** Chaque entrée de `prononciations-fr.txt` a été vérifiée par aller-retour synthèse →
+reconnaissance (`tools/roundtrip.py --verifier-entrees`, deux voix, deux phrases) et n'est retenue que si elle
+améliore la lecture ; mesures dans `recette.md`. Version 0.2.0.
+
 ## Voix
 
 Les voix sont des dossiers dans `voices/` (modèle `.onnx`, `tokens.txt`, `espeak-ng-data/`, `voice.json`
@@ -201,7 +276,7 @@ française féminine, une masculine et une voix anglaise, dont la licence autori
 
 Une seule fenêtre : choisir le fichier (ou le glisser), voix, vitesse, format et découpage, « Écouter un
 extrait », « Convertir », barre de progression et zone d'état annoncée par le lecteur d'écran, « Annuler »,
-« Exporter le texte ». Ligne de commande équivalente (`voxpage.exe entree.pdf -o sortie.mp3 …`), qui sert
+« Exporter le texte », « Prononciations » (dialogue du dictionnaire, voir plus haut). Ligne de commande équivalente (`voxpage.exe entree.pdf -o sortie.mp3 …`), qui sert
 aussi aux tests de la CI.
 
 ## Livrable
@@ -210,7 +285,8 @@ aussi aux tests de la CI.
 avec `packaging/voxpage.spec` (PyInstaller `--onedir`, sans UPX). Contenu du dossier `Voxpage/` :
 `Voxpage.exe` (fenêtré ; avec arguments, délègue à la CLI), `voxpage-cli.exe` (console), `_internal/`
 (Python et bibliothèques natives), `voices/` (3 voix + README), `LISEZMOI.txt`, `NOTICE.txt` (licences
-tierces, généré par `packaging/make_notice.py`). `settings.json` est écrit à côté de l'exécutable.
+tierces, généré par `packaging/make_notice.py`). `settings.json` est écrit à côté de l'exécutable, et
+`prononciations.txt` (dictionnaire de l'utilisateur) au premier ajout d'une entrée.
 Version unique : `pyproject.toml` (= `voxpage.__version__`, test à l'appui) ; le tag `vX.Y.Z` doit
 correspondre. Le workflow teste l'exécutable construit (`packaging/test_release.py`) dans un dossier
 décompressé hors du dépôt, au chemin avec espace et accent, avec un PATH réduit à Windows.

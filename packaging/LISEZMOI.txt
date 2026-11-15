@@ -34,13 +34,31 @@ On peut aussi glisser un fichier sur la fenetre.
 
 OU SONT LES REGLAGES
 --------------------
-Dans le fichier settings.json, a cote de Voxpage.exe : c'est le seul fichier
-que Voxpage ecrit (hors fichiers audio). Supprimez-le pour revenir aux reglages
+Dans le fichier settings.json, a cote de Voxpage.exe : avec prononciations.txt
+(dictionnaire de prononciation, cree a la premiere entree ajoutee), ce sont les
+seuls fichiers que Voxpage ecrit (hors fichiers audio). Supprimez-le pour revenir aux reglages
 d'origine. Si le dossier n'est pas modifiable (disque protege en ecriture),
 Voxpage utilise alors %APPDATA%\Voxpage.
 Les voix sont dans le dossier "voices" (une voix par sous-dossier).
 Les modeles de lecture des pages scannees (OCR) sont dans le dossier "ocr".
 Les fichiers audio sont crees a cote du document, ou la ou vous le choisissez.
+
+PRONONCIATIONS (MOTS ET SIGLES MAL LUS)
+---------------------------------------
+Quand la voix lit mal un mot, un nom propre ou un sigle, vous pouvez lui dire
+comment le lire : bouton "Prononciations..." (Alt + P) de la fenetre. Une
+entree s'ecrit "ecrit = dit", par exemple :
+    EDF = eu de effe
+    Nguyen = nou-yene
+    c.-a-d. = c'est-a-dire
+Le "dit" est du texte ordinaire que la voix lit tel quel. Le bouton "Ecouter"
+permet de l'essayer. Les entrees sont dans le fichier prononciations.txt, a cote
+de Voxpage.exe (ou dans %APPDATA%\Voxpage) : un fichier texte UTF-8, une entree
+par ligne, "#" pour un commentaire, que l'on peut aussi modifier avec le
+Bloc-notes ("Ouvrir le fichier"). Voxpage livre deja un dictionnaire pour les
+sigles francais courants ; vos entrees l'emportent, et "mot =" (rien apres le
+signe egal) annule une entree livree. En ligne de commande : --prononciations
+FICHIER (autre dictionnaire) et --sans-prononciations (aucun dictionnaire).
 
 PAGES SCANNEES (OCR)
 --------------------

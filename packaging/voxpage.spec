@@ -79,6 +79,9 @@ hiddenimports += ["wx", "wx.adv"]
 # Paquets du projet chargés par nom
 hiddenimports += collect_submodules("voxpage")
 
+# Dictionnaires de prononciation livrés (voxpage/normalize/data/prononciations-<langue>.txt), lus par chemin
+datas += [(str(ROOT / "voxpage" / "normalize" / "data"), "voxpage/normalize/data")]
+
 EXCLUDES = [
     "tkinter", "unittest", "pytest", "test", "tests", "pydoc", "doctest", "distutils", "setuptools",
     "pip", "IPython", "matplotlib", "scipy", "pandas", "PyInstaller", "torch", "paddle", "openvino", "tensorrt",
