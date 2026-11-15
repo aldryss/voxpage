@@ -187,8 +187,8 @@ ADMIN = [
     "(tél. : 01 42 00 00 00).",
 ]
 ADMIN_ATTENDU = [
-    "Vu l'article L. 123-4 du code de l'urbanisme ; vu le décret numéro 2019-1234 du 5 novembre 2019 ; "
-    "vu la loi numéro 2004-801 du 6 août 2004, notamment son article 12 et ses paragraphes 3 à 5, et "
+    "Vu l'article L. 123-4 du code de l'urbanisme ; vu le décret numéro 2019 tiret 1234 du 5 novembre 2019 ; "
+    "vu la loi numéro 2004 tiret 801 du 6 août 2004, notamment son article 12 et ses paragraphes 3 à 5, et "
     "cetera.",
     "Le montant de la subvention est fixé à 1234567 euros 89 (soit quinze virgule cinq pour cent du coût "
     "total de l'opération, estimé à 8000000 euros).",

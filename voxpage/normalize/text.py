@@ -168,6 +168,9 @@ def speak(sentence: str, lang: str) -> str:
     for pat, rep in r.ABBREVIATIONS:
         t = pat.sub(rep, t)
     t = numbers.ranges(t, lang)
+    if lang == "fr":
+        # « loi n° 88-1028 » : numéro composé, entendu « 80.1028 » sans le tiret dit (aller-retour)
+        t = re.sub(r"\b([Nn]uméros? )(\d+)-(\d+)\b", r"\1\2 tiret \3", t)
     t = numbers.fractions(t, lang)
     t = numbers.money(t, lang)
     t = numbers.percents(t, lang)

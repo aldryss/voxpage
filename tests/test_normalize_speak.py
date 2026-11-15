@@ -124,6 +124,7 @@ FR = [
     ("12° à l'ombre", "12 degrés à l'ombre"),
     ("(cf paragraphe 1)", "(confer paragraphe 1)"),
     ("prévu au 2° du 3 de l'article 158", "prévu au 2 du 3 de l'article 158"),
+    ("la loi n° 88-1028 du 9 novembre 1988", "la loi numéro 88 tiret 1028 du 9 novembre 1988"),
     ("60-65 °C; 50–55 °C", "60 à 65 degrés Celsius; 50 à 55 degrés Celsius"),  # notice de théière
     ("mentionnés au 2° du 2 bis", "mentionnés au 2 du 2 bis"),
     ("Je laissai à M. le curé les francs.", "Je laissai à monsieur le curé les francs."),  # Maupassant
@@ -178,7 +179,8 @@ def test_speak_fr_ne_touche_pas(text):
 
 def test_plage_avec_contexte_sur():
     assert speak("Il y a 10-15 personnes.", "fr") == "Il y a 10 à 15 personnes."
-    assert speak("Loi n° 2004-801.", "fr") == "Loi numéro 2004-801."
+    # tiret dit : sans lui, la voix lisait « 88-1028 » comme « 80.1028 » (aller-retour, recette #11)
+    assert speak("Loi n° 2004-801.", "fr") == "Loi numéro 2004 tiret 801."
 
 
 EN = [
