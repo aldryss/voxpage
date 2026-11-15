@@ -159,6 +159,7 @@ FR_INTACT = [
     "pages 12, 345 et 400",
     "1, 234 personnes",
     "de 2010 - 2020",
+    "la guerre de 1914 -1918",
     "A - Une activité",
     "La loi 99-209 et le COVID-19",
     "Le chat boit du lait.",

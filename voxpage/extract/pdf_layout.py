@@ -859,14 +859,13 @@ def _rows_of(frags: list) -> list[list]:
     def base(f) -> float:
         return caps.get(id(f), f.baseline)
 
-    def size(f) -> float:
-        return f.size if id(f) not in caps else 0.0
-
     rows: list[list] = []
     for f in sorted(frags, key=base):
         if rows:
             ref = next((g for g in rows[-1] if id(g) not in caps), rows[-1][0])
-            tol = 0.5 * min(s for s in (size(f), size(ref)) if s > 0) if size(f) or size(ref) else 1.0
+            # tolérance tirée du corps du texte : celui d'une lettrine ne compte pas
+            sizes = [g.size for g in (f, ref) if id(g) not in caps]
+            tol = 0.5 * min(sizes) if sizes else 1.0
             if abs(base(ref) - base(f)) < tol:
                 rows[-1].append(f)
                 continue

@@ -312,8 +312,7 @@ def enumeration_degree(text: str, lang: str) -> str:
         n = int(m.group(2))
         if n == 0:
             return m.group(0)
-        word = "premier" if n == 1 else ordinal_words(n, lang)
-        adverb = "premièrement" if n == 1 else word + "ment"
+        adverb = "premièrement" if n == 1 else ordinal_words(n, lang) + "ment"
         return f"{m.group(1)}{adverb},"
 
     return _ENUM_DEGREE.sub(rep, text)
