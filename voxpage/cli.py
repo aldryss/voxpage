@@ -62,6 +62,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "--texte", metavar="FICHIER.txt", help="exporte le texte qui serait lu, au lieu de l'audio"
     )
     p.add_argument("--liste-voix", action="store_true", help="affiche les voix disponibles et quitte")
+    p.add_argument("--diagnostic", action="store_true", help="vérifie l'installation et quitte")
     p.add_argument("--silencieux", action="store_true", help="n'affiche pas la progression")
     p.add_argument("--version", action="version", version=f"voxpage {__version__}")
     return p
@@ -150,6 +151,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     except SystemExit as exc:  # argparse : 0 pour --help/--version, 2 sinon
         return exc.code if isinstance(exc.code, int) else EXIT_USAGE
 
+    if args.diagnostic:
+        from voxpage import diagnostic
+
+        return diagnostic.run()
     if args.liste_voix:
         try:
             return _list_voices()

@@ -88,10 +88,13 @@ def load() -> Settings:
     return _build(Settings, data)
 
 
-def save(s: Settings) -> None:
+def settings_path() -> Path:
+    """Fichier où `save` écrit : à côté de l'exécutable, sinon dans le profil utilisateur."""
     directory = app_dir()
-    if not _is_writable(directory):
-        directory = fallback_dir()
-        directory.mkdir(parents=True, exist_ok=True)
-    path = directory / FILENAME
+    return (directory if _is_writable(directory) else fallback_dir()) / FILENAME
+
+
+def save(s: Settings) -> None:
+    path = settings_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(dataclasses.asdict(s), indent=2, ensure_ascii=False), encoding="utf-8")

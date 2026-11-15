@@ -1,0 +1,95 @@
+name: Release
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Vérifier la version
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os, re, sys, tomllib
+          version = tomllib.load(open("pyproject.toml", "rb"))["project"]["version"]
+          init = re.search(r'__version__ = "([^"]+)"', open("voxpage/__init__.py", encoding="utf-8").read()).group(1)
+          if init != version:
+              sys.exit(f"voxpage/__init__.py ({init}) et pyproject.toml ({version}) divergent")
+          if os.environ["GITHUB_REF_TYPE"] == "tag":
+              tag = os.environ["GITHUB_REF_NAME"]
+              if tag != f"v{version}":
+                  sys.exit(f"Le tag {tag} ne correspond pas à la version de pyproject.toml (v{version})")
+          print(f"Version : {version}")
+          PY
+
+      - run: pip install -e ".[dev,gui,build]"
+      - run: ruff check .
+      - run: pytest -q
+
+      - name: Cache des voix
+        uses: actions/cache@v4
+        with:
+          path: voices
+          key: voices-${{ hashFiles('tools/fetch_voices.py') }}
+      - name: Télécharger les voix
+        run: python tools/fetch_voices.py
+
+      - name: Construire l'exécutable
+        run: |
+          python packaging/make_notice.py build/NOTICE.txt
+          pyinstaller packaging/voxpage.spec --noconfirm --clean --distpath dist --workpath build/pyinstaller
+          python packaging/assemble.py dist/Voxpage
+
+      - name: Tester l'exécutable construit
+        run: |
+          $zip = (Get-Item dist/*-win64-portable.zip).FullName
+          python packaging/test_release.py $zip
+
+      - name: Résumé
+        shell: pwsh
+        run: |
+          $zip = Get-Item dist/*-win64-portable.zip
+          $size = '{0:N1} Mo' -f ($zip.Length / 1MB)
+          $hash = (Get-Content "$($zip.FullName).sha256").Split(' ')[0]
+          "### $($zip.Name)`n`n- Taille : **$size** ($($zip.Length) octets)`n- SHA-256 : ``$hash``" |
+            Out-File -Append -Encoding utf8 $env:GITHUB_STEP_SUMMARY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: voxpage-win64-portable
+          path: |
+            dist/*-win64-portable.zip
+            dist/*-win64-portable.zip.sha256
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    if: github.ref_type == 'tag'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: voxpage-win64-portable
+          path: release
+      - name: Publier la release GitHub
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" release/* \
+            --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes --title "Voxpage ${GITHUB_REF_NAME#v}"

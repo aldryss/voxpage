@@ -179,6 +179,20 @@ extrait », « Convertir », barre de progression et zone d'état annoncée par 
 « Exporter le texte ». Ligne de commande équivalente (`voxpage.exe entree.pdf -o sortie.mp3 …`), qui sert
 aussi aux tests de la CI.
 
+## Livrable
+
+`Voxpage-<version>-win64-portable.zip` (plus un `.sha256`), construit par `.github/workflows/release.yml`
+avec `packaging/voxpage.spec` (PyInstaller `--onedir`, sans UPX). Contenu du dossier `Voxpage/` :
+`Voxpage.exe` (fenêtré ; avec arguments, délègue à la CLI), `voxpage-cli.exe` (console), `_internal/`
+(Python et bibliothèques natives), `voices/` (3 voix + README), `LISEZMOI.txt`, `NOTICE.txt` (licences
+tierces, généré par `packaging/make_notice.py`). `settings.json` est écrit à côté de l'exécutable.
+Version unique : `pyproject.toml` (= `voxpage.__version__`, test à l'appui) ; le tag `vX.Y.Z` doit
+correspondre. Le workflow teste l'exécutable construit (`packaging/test_release.py`) dans un dossier
+décompressé hors du dépôt, au chemin avec espace et accent, avec un PATH réduit à Windows.
+`voxpage --diagnostic` vérifie les bibliothèques embarquées et l'écriture des réglages.
+Exécutable non signé : avertissement SmartScreen, documenté dans `LISEZMOI.txt`.
+Procédure : `docs/release.md`.
+
 ## Vérification
 
 - Tests unitaires sur chaque module (pytest), exécutés sous Linux et Windows par la CI.

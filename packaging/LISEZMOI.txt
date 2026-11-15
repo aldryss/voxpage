@@ -1,0 +1,54 @@
+VOXPAGE - convertit un document en fichier audio (MP3 ou WAV)
+==============================================================
+
+Voxpage lit un document (PDF, texte) avec une voix de synthese et produit un
+fichier audio. Tout se passe sur votre ordinateur : aucune connexion internet,
+aucun compte, aucune installation, aucun droit administrateur.
+
+LANCEMENT
+---------
+1. Decompressez le zip ou vous voulez (dossier du disque, cle USB...).
+   Gardez le dossier complet : Voxpage.exe a besoin des dossiers "_internal" et
+   "voices" qui sont a cote de lui.
+2. Double-cliquez sur Voxpage.exe. L'interface s'utilise entierement au clavier
+   et avec un lecteur d'ecran (NVDA, JAWS, Narrateur).
+
+AVERTISSEMENT WINDOWS (SmartScreen)
+-----------------------------------
+Voxpage n'est pas signe numeriquement : au premier lancement, Windows peut
+afficher "Windows a protege votre ordinateur". Choisissez "Informations
+complementaires" puis "Executer quand meme". Si le zip vient d'internet, vous
+pouvez aussi, avant de le decompresser : clic droit sur le zip, Proprietes,
+cocher "Debloquer", OK. Vous pouvez verifier le fichier telecharge avec la somme
+SHA-256 publiee a cote du zip (commande : certutil -hashfile fichier.zip SHA256).
+
+RACCOURCIS CLAVIER
+------------------
+Ctrl+O          choisir le fichier a convertir
+Ctrl+Entree     lancer la conversion
+Echap           annuler la conversion en cours
+F1              afficher l'aide des raccourcis
+Tab / Maj+Tab   passer d'un controle a l'autre
+Alt + lettre    aller directement au controle dont la lettre est soulignee
+On peut aussi glisser un fichier sur la fenetre.
+
+OU SONT LES REGLAGES
+--------------------
+Dans le fichier settings.json, a cote de Voxpage.exe : c'est le seul fichier
+que Voxpage ecrit (hors fichiers audio). Supprimez-le pour revenir aux reglages
+d'origine. Si le dossier n'est pas modifiable (disque protege en ecriture),
+Voxpage utilise alors %APPDATA%\Voxpage.
+Les voix sont dans le dossier "voices" (une voix par sous-dossier).
+Les fichiers audio sont crees a cote du document, ou la ou vous le choisissez.
+
+LIGNE DE COMMANDE
+-----------------
+voxpage-cli.exe est la version console (memes reglages) :
+    voxpage-cli.exe document.pdf -o livre.mp3 --voix fr_FR-siwis-medium
+    voxpage-cli.exe --liste-voix
+    voxpage-cli.exe --aide
+Voxpage.exe suivi d'arguments se comporte comme voxpage-cli.exe.
+
+LICENCES
+--------
+Voir NOTICE.txt (composants logiciels) et voices\README.md (voix).
