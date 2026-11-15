@@ -188,7 +188,7 @@ _RANGE = re.compile(r"(?<![\w.,/+\-–])(\d{1,3})\s?[-–]\s?(\d{1,3})(?![\w.,/]
 
 def ranges(text: str, lang: str) -> str:
     r = _rules(lang)
-    after = re.compile(rf"\s?(?:{r.RANGE_AFTER}|{_unit_alt(lang)}|[€$£])(?![\w])", re.I)
+    after = re.compile(rf"\s?(?:{r.RANGE_AFTER}|{_unit_alt(lang)}|[€$£]|°[CF]?)(?![\w])", re.I)
     before = re.compile(rf"\b(?:{r.RANGE_BEFORE})\s$", re.I)
 
     def rep(m: re.Match) -> str:

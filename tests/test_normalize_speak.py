@@ -124,6 +124,7 @@ FR = [
     ("12° à l'ombre", "12 degrés à l'ombre"),
     ("(cf paragraphe 1)", "(confer paragraphe 1)"),
     ("prévu au 2° du 3 de l'article 158", "prévu au 2 du 3 de l'article 158"),
+    ("60-65 °C; 50–55 °C", "60 à 65 degrés Celsius; 50 à 55 degrés Celsius"),  # notice de théière
     ("mentionnés au 2° du 2 bis", "mentionnés au 2 du 2 bis"),
     ("Je laissai à M. le curé les francs.", "Je laissai à monsieur le curé les francs."),  # Maupassant
     ("Voici M. de Villefort", "Voici monsieur de Villefort"),
