@@ -240,3 +240,17 @@ def test_chapitre_trop_long_decoupe_au_niveau_inferieur():
         "2 Politiques sociales",
         "Conclusion",
     ]
+
+
+def test_lettrine_dont_la_boite_deborde_sur_le_retrait(tmp_path):
+    """« T, » (Bibebook, « La folle ») : la boîte de la lettrine dépasse le retrait des lignes suivantes."""
+
+    def draw(c):
+        c.setFont("Helvetica", 40)
+        c.drawString(60, 700 - 24, "T,")  # largeur ~ 33 pt : déborde sur le retrait (x = 88)
+        _lines(c, 110, 700, ["enez, dit M. Mathieu, les bécasses me rappellent une"])
+        _lines(c, 88, 688, ["bien sinistre anecdote de la guerre. Vous connaissez", "ma propriété."])
+        _lines(c, 60, 664, ["Je l'habitais au moment de l'arrivée des Prussiens."])
+
+    text = " ".join(_texts(_pdf(tmp_path / "t.pdf", draw)))
+    assert text.index("Mathieu") < text.index("sinistre") < text.index("propriété") < text.index("habitais")

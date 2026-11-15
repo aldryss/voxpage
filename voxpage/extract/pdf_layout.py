@@ -842,7 +842,7 @@ def _drop_cap_rows(frags: list) -> dict[int, float]:
             g
             for g in frags
             if g is not f
-            and g.x0 >= f.x1 - 1
+            and g.x0 > (f.x0 + f.x1) / 2  # la boîte d'une lettrine déborde souvent sur le retrait des lignes
             and g.x0 <= f.x1 + 3 * f.size
             and g.top < f.bottom
             and g.bottom > f.top
