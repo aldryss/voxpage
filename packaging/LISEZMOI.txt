@@ -46,7 +46,7 @@ LIGNE DE COMMANDE
 voxpage-cli.exe est la version console (memes reglages) :
     voxpage-cli.exe document.pdf -o livre.mp3 --voix fr_FR-siwis-medium
     voxpage-cli.exe --liste-voix
-    voxpage-cli.exe --aide
+    voxpage-cli.exe --help
 Voxpage.exe suivi d'arguments se comporte comme voxpage-cli.exe.
 
 LICENCES
