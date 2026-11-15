@@ -123,6 +123,8 @@ FR = [
     ("2° exercent en France une activité", "deuxièmement, exercent en France une activité"),
     ("12° à l'ombre", "12 degrés à l'ombre"),
     ("(cf paragraphe 1)", "(confer paragraphe 1)"),
+    ("Je laissai à M. le curé les francs.", "Je laissai à monsieur le curé les francs."),  # Maupassant
+    ("Voici M. de Villefort", "Voici monsieur de Villefort"),
 ]
 
 # cas « ne pas toucher » : l'ambiguïté impose de laisser le texte tel quel
@@ -230,6 +232,7 @@ DECAPS = [
     ("Le texte normal garde sa SNCF", "Le texte normal garde sa SNCF", "fr"),
     ("Bonjour", "Bonjour", "fr"),
     ("RAPPORT ANNUEL DU CNRS", "Rapport annuel du CNRS", "fr"),
+    ("TITRE XI BIS - LE DÉFENSEUR DES DROITS", "Titre XI bis - le défenseur des droits", "fr"),
 ]
 
 
