@@ -40,8 +40,9 @@ def clean_block(text: str, kind: str = "paragraph") -> str:
     text = re.sub(r"(?:(?<=[^\W\d_])|(?<=[)»”\"]))\(\d{1,2}\)(?=[\s.,;:)/]|$)", "", text)
     # points de conduite d'une table des matières (« Délibéré........ 5 ») : une simple pause
     text = re.sub(r"\s*(?:[.…·]\s?){4,}\s*", ", ", text).strip(" ,")
-    # puces
-    text = re.sub(rf"^[{re.escape(_BULLETS)}]\s*", "", text)
+    # puces (dans un tableau, ✓ et ✔ sont des valeurs, pas des puces)
+    bullets = _BULLETS.replace("✓✔", "") if kind == "table" else _BULLETS
+    text = re.sub(rf"^[{re.escape(bullets)}]\s*", "", text)
     if kind == "list_item":
         text = re.sub(r"^[-–—*]\s+", "", text)
         # numérotation « 1. », « 2) », « a) » : on la garde, sans que le point coupe la phrase
