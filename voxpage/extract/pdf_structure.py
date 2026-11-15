@@ -15,6 +15,8 @@ _TERMINAL = tuple('.!?…:»”")')
 _NUMBERED = re.compile(r"^(?:\(?\d{1,3}[.)]|\(?[a-z][.)]|\(?[ivx]{1,5}[.)])\s+\S")
 _BULLET = re.compile(r"^[•◦▪▫‣⁃●○■□►▶➢➤✓✔∙·]\s*")
 _DASH_ITEM = re.compile(r"^[–-]\s+\S")
+_LEADING_ZERO = re.compile(r"^\(?0\d")
+_ORNAMENT = re.compile(r"^[a-z]$")
 _CAPTION = re.compile(
     r"^(?:Figure|Fig\.|Tableau|Table|Illustration|Graphique|Schéma|Carte|Photo|Image|Planche|Chart|Graph|"
     r"Plate|Encadré)\s*(?:n°\s*)?(?:\d+|[IVXLC]+)(?:[.-]\d+)?[a-z]?\s*[.:—–−-]",
@@ -281,8 +283,16 @@ class Builder:
         bullet = starts_with_bullet(stripped) or bool(_DASH_ITEM.match(stripped))
         cur, prev = self.cur, self.prev
         prev_text = cur.texts[-1].rstrip() if cur and cur.texts else ""
-        numbered = bool(_NUMBERED.match(stripped)) and (
-            cur is None or prev_text.endswith(_TERMINAL + (";",)) or cur.kind == "list_item" or prev is None
+        numbered = (
+            bool(_NUMBERED.match(stripped))
+            and not _LEADING_ZERO.match(stripped)  # « 089) ; » : suite d'une référence coupée, pas un numéro
+            and not ends_with_break_hyphen(prev_text)
+            and (
+                cur is None
+                or prev_text.endswith(_TERMINAL + (";",))
+                or cur.kind == "list_item"
+                or prev is None
+            )
         )
         if cur is None or prev is None:
             self.start("list_item" if bullet or numbered else "paragraph", line, text, calls)
@@ -341,7 +351,12 @@ class Builder:
             return
         if cur.kind == "list_item":
             first = cur.lines[0]
-            if line.x0 <= first.x0 + 0.3 * line.size and not indent:
+            # élément de liste dont les lignes suivantes reviennent à la marge (sans retrait) : la phrase
+            # continue si la ligne précédente, pleine, ne la termine pas
+            wraps = not _short(prev) and (
+                ends_with_break_hyphen(prev_text) or not prev_text.endswith(_TERMINAL + (";",))
+            )
+            if line.x0 <= first.x0 + 0.3 * line.size and not indent and not wraps:
                 self.start("paragraph", line, text, calls)
             else:
                 self.append(line, text, calls)
@@ -379,7 +394,8 @@ class Builder:
             for t in b.texts:
                 text = join_lines(text, t, self.stats) if text else t
             b.text = clean_text(text)
-        return [b for b in self.blocks if b.text]
+        # une lettre minuscule seule formant un bloc : vignette ou fleuron d'une police décorative (« n »)
+        return [b for b in self.blocks if b.text and not (b.kind == "paragraph" and _ORNAMENT.match(b.text))]
 
 
 def word_stats(rendered: list[str]) -> WordStats:
@@ -429,6 +445,45 @@ def heading_levels(blocks: list[_Block], body: float) -> None:
     for b in heads:
         s = round(b.size * 2) / 2
         b.level = min(6, sizes.index(s) + 1 if s in sizes else len(sizes) + 1)
+    demote_figure_titles(blocks)
+
+
+_NUMBERED_TITLE = re.compile(r"^\d{1,2}[.)]\s+\S")
+
+
+def _figure_like(content: list[_Block]) -> bool:
+    """Début de contenu d'une figure ou d'un tableau plutôt que d'une section : des étiquettes courtes
+    (axes, légendes, cellules) ou des chiffres, là où une section commence par un paragraphe."""
+
+    def label(t: str) -> bool:
+        alnum = sum(1 for c in t if c.isalnum())
+        return len(t) <= 40 or sum(1 for c in t if c.isdigit()) >= 0.3 * max(1, alnum)
+
+    head = [b.text for b in content if b.kind != "heading"][:5]
+    if not head or not label(head[0]):
+        return False
+    return sum(1 for t in head if label(t)) * 2 > len(head)
+
+
+def demote_figure_titles(blocks: list[_Block]) -> None:
+    """Titres de figures numérotées (« 1. Évolution de la population… ») pris pour des titres de section :
+    quand, à un même niveau, des titres numérotés côtoient des titres qui ne le sont pas, un titre numéroté
+    suivi d'un contenu de figure (étiquettes courtes, chiffres) devient une légende. Il reste lu, mais
+    n'ouvre plus de chapitre."""
+    heads = [(i, b) for i, b in enumerate(blocks) if b.kind == "heading"]
+    for level in {b.level for _, b in heads}:
+        same = [(i, b) for i, b in heads if b.level == level]
+        numbered = [(i, b) for i, b in same if _NUMBERED_TITLE.match(b.text)]
+        if not numbered or len(numbered) == len(same):
+            continue
+        for i, b in numbered:
+            content = []
+            for nxt in blocks[i + 1 :]:
+                if nxt.kind == "heading":
+                    break
+                content.append(nxt)
+            if _figure_like(content):
+                b.kind, b.level = "caption", 0
 
 
 def build_notes(pages_notes: list[tuple[int, list[Line]]]) -> list[Note]:

@@ -275,8 +275,37 @@ def read_page(ltpage, index: int) -> PageData:
     page.n_unknown = stats["unknown"]
     page.n_rotated = stats["rotated"]
     vsegs = [s for s in segs if not s.horizontal]
-    page.frags = build_frags(chars, vsegs, index)
+    page.frags = build_frags(_drop_microtext(chars), vsegs, index)
     return page
+
+
+MICRO_SIZE = 3.0  # points : en dessous, un texte n'est lisible par personne à l'impression
+
+
+def _drop_microtext(chars: list[Char]) -> list[Char]:
+    """Retire les suites d'au moins trois caractères microscopiques de même taille (libellé dessiné dans une
+    icône, mention en filigrane) : invisibles à l'œil, ils s'intercaleraient lettre à lettre dans le texte
+    voisin (« l'eSaTOPu »). Un caractère isolé de petite taille (corps mal déclaré, exposant) est gardé."""
+    out: list[Char] = []
+    run: list[Char] = []
+
+    def close() -> None:
+        if len(run) < 3:
+            out.extend(run)
+        run.clear()
+
+    for c in chars:
+        tiny = 0 < c.size < MICRO_SIZE
+        if tiny and (not run or abs(run[0].size - c.size) < 0.15):
+            run.append(c)
+            continue
+        close()
+        if tiny:
+            run.append(c)
+        else:
+            out.append(c)
+    close()
+    return out
 
 
 def _is_light(color) -> bool:
@@ -787,13 +816,58 @@ def _rule_tables(hs: list[Seg], frags: list[Frag]) -> list[Region]:
     return out
 
 
+def is_drop_cap(frag, size: float) -> bool:
+    """Lettrine : une ou deux lettres au moins deux fois plus grandes que le texte qu'elles ouvrent."""
+    t = frag.text.strip()
+    return 1 <= len(t) <= 2 and t[0].isalpha() and frag.size >= 2 * size
+
+
+def _drop_cap_rows(frags: list) -> dict[int, float]:
+    """Ligne de base à retenir pour chaque lettrine : celle de la première ligne de texte à sa droite.
+
+    Une lettrine descend sur plusieurs lignes et sa ligne de base est celle de la dernière : sans
+    correction, elle serait rangée avec cette dernière ligne et l'ordre des premières lignes s'inverserait.
+    """
+    out: dict[int, float] = {}
+    if len(frags) < 2:
+        return out
+    for f in frags:
+        t = f.text.strip()
+        if not (1 <= len(t) <= 2 and t[0].isalpha()):
+            continue
+        right = [
+            g
+            for g in frags
+            if g is not f
+            and g.x0 >= f.x1 - 1
+            and g.x0 <= f.x1 + 3 * f.size
+            and g.top < f.bottom
+            and g.bottom > f.top
+            and is_drop_cap(f, g.size)
+        ]
+        if len(right) >= 2:
+            out[id(f)] = min(right, key=lambda g: g.top).baseline
+    return out
+
+
 def _rows_of(frags: list) -> list[list]:
+    caps = _drop_cap_rows(frags)
+
+    def base(f) -> float:
+        return caps.get(id(f), f.baseline)
+
+    def size(f) -> float:
+        return f.size if id(f) not in caps else 0.0
+
     rows: list[list] = []
-    for f in sorted(frags, key=lambda f: f.baseline):
-        if rows and abs(rows[-1][0].baseline - f.baseline) < 0.5 * min(f.size, rows[-1][0].size):
-            rows[-1].append(f)
-        else:
-            rows.append([f])
+    for f in sorted(frags, key=base):
+        if rows:
+            ref = next((g for g in rows[-1] if id(g) not in caps), rows[-1][0])
+            tol = 0.5 * min(s for s in (size(f), size(ref)) if s > 0) if size(f) or size(ref) else 1.0
+            if abs(base(ref) - base(f)) < tol:
+                rows[-1].append(f)
+                continue
+        rows.append([f])
     for r in rows:
         r.sort(key=lambda f: f.x0)
     return rows
@@ -1001,11 +1075,20 @@ def _hbands(items: list) -> list[list]:
 def _line(frags: list[Frag], page: int, col: tuple[float, float], region: int = 0) -> Line:
     frags = sorted(frags, key=lambda f: f.x0)
     spans: list[Span] = []
+    main = max(frags, key=lambda f: (len(f.text), f.size))
+    prev = None
     for f in frags:
-        if spans and not spans[-1].text.endswith(" "):
+        # lettrine suivie de la fin de son mot (« L » + « e vieux baron ») : pas d'espace entre les deux
+        glued = (
+            prev is not None
+            and is_drop_cap(prev, f.size)
+            and f.text[:1].islower()
+            and f.x0 - prev.x1 < f.size
+        )
+        if spans and not spans[-1].text.endswith(" ") and not glued:
             spans.append(Span(" "))
         spans.extend(Span(s.text, s.role) for s in f.spans)
-    main = max(frags, key=lambda f: (len(f.text), f.size))
+        prev = f
     total = sum(len(f.text) for f in frags)
     return Line(
         spans,
