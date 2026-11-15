@@ -343,7 +343,7 @@ def test_unwritable_destination_refused(tmp_path):
     assert [p.name for p in tmp_path.iterdir()] == ["fichier"]
 
 
-@pytest.mark.skipif(os.geteuid() == 0, reason="root ignore les permissions")
+@pytest.mark.skipif(os.name == "nt" or os.geteuid() == 0, reason="permissions POSIX requises (ni Windows ni root)")
 def test_readonly_directory_refused(tmp_path):
     ro = tmp_path / "ro"
     ro.mkdir()
