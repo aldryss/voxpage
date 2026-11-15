@@ -58,11 +58,18 @@ class _Recorder:
         return "Texte extrait."
 
 
+def wx_idle(app) -> None:
+    import wx
+
+    wx.WakeUpIdle()
+    app.ProcessPendingEvents()
+
+
 def _pump(app, cond: Callable[[], bool], timeout: float = 30.0) -> bool:
     end = time.monotonic() + timeout
     while time.monotonic() < end:
         app.Yield(True)
-        app.ProcessIdle()
+        wx_idle(app)
         if cond():
             return True
         time.sleep(0.01)
